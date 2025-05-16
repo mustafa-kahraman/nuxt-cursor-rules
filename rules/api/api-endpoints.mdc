@@ -1,0 +1,348 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# API Endpoints Kuralları (NuxtJS)
+
+## 🎯 Kural Tipi Yapılandırması
+
+### Birincil Kural Tipi Seçimi
+- [ ] Her zaman: Her istekte otomatik olarak uygulanır (örn. kod stili, güvenlik kontrolleri)
+- [x] Manuel: Yalnızca manuel olarak çağrıldığında kullanılır (örn. özel kod oluşturma şablonları)
+- [ ] Otomatik Eklenmiş: Belirli dosyalar/durumlar için otomatik olarak tetiklenir
+- [ ] Ajan Tarafından İstenen: AI tarafından gerektiğinde çağrılır
+
+type: manual
+description: NuxtJS 3+ projelerinde API endpoint'lerinin yapısını ve uygulama standartlarını tanımlar.
+globs: server/api/**/*.ts
+
+## 📋 Sorumluluklar
+
+### Hata Yönetimi [@error-handling-rules.mdc]
+- `h3`'ün `createError` fonksiyonunu kullanarak standart HTTP hataları oluşturun.
+- Özel iş mantığı hataları için belki ayrı hata sınıfları kullanın (bkz: @error-handling-rules.mdc).
+- Girdi doğrulama hatalarını yönetin (örn. `zod` ile).
+
+### Veri Katmanı [@types-schema-models.mdc]
+- Veritabanı işlemleri için belirlenen ORM/metodu kullanın (örn. Prisma, Mongoose).
+- `types-schema-models.mdc` içindeki model şeması tanımlarına uyun.
+- Veri doğrulamasını şemalar kullanarak uygulayın.
+
+### İstek/Yanıt Yapısı
+- Endpoint isimlendirmesinde REST prensiplerini takip edin.
+- Uygun HTTP metodlarını kullanın (GET/POST/PUT/DELETE vb.).
+- Tutarlı bir yanıt formatı uygulayın (örn. JSend veya benzeri):
+  ```typescript
+  // Örnek Başarılı Yanıt
+  {
+    status: 'success',
+    data: { /* ... veriler ... */ }
+  }
+
+  // Örnek Hata Yanıtı (createError ile otomatik yönetilir)
+  {
+    "statusCode": 400,
+    "statusMessage": "Bad Request",
+    "message": "Gerekli alan eksik: email"
+  }
+  ```
+
+### Uluslararasılaştırma [@i18n-rules.mdc]
+- Hata mesajları ve diğer metinler için i18n mekanizmasını kullanın.
+
+## 🧩 Anahtar Bileşenler
+- Route Handler: `defineEventHandler` kullanarak temel endpoint mantığı.
+- Doğrulama: İstek verisi doğrulaması (örn. `zod` ile `readValidatedBody`, `getValidatedQuery`).
+- Hata İşleyici: Nuxt'ın yerleşik `h3` hata yönetimi (`createError`, `throwError`).
+- Veritabanı Erişimi: Tanımlanmış veri katmanı kurallarına göre (@types-schema-models.mdc).
+
+## 📦 Bağımlılıklar
+
+### Gerekli Paketler
+- `h3`: (Nuxt ile gelir)
+- `zod`: (İsteğe bağlı ama önerilen, şema doğrulaması için)
+- Veritabanı istemcisi (örn. `@prisma/client`, `mongoose`)
+
+### Gerekli Kurallar
+- error-handling-rules.mdc (Varsayımsal)
+- types-schema-models.mdc (Varsayımsal)
+- i18n-rules.mdc (Varsayımsal)
+
+## ✅ Doğru Kullanım
+```typescript
+// server/api/users/[id].get.ts
+import { User } from '@/server/models/user.model'; // Varsayımsal model
+import { z } from 'zod';
+
+export default defineEventHandler(async (event) => {
+  const id = getRouterParam(event, 'id');
+
+  // ID'nin geçerli bir formatta olup olmadığını kontrol et (örneğin ObjectId)
+  if (!isValidObjectId(id)) { // isValidObjectId varsayımsal bir yardımcı fonksiyondur
+      throw createError({
+          statusCode: 400,
+          statusMessage: 'Bad Request',
+          message: 'Geçersiz kullanıcı ID formatı.',
+      });
+  }
+
+  const user = await User.findById(id);
+
+  if (!user) {
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'Not Found',
+      message: `Kullanıcı bulunamadı: ${id}`,
+    });
+  }
+
+  // Başarılı yanıt (otomatik olarak JSON'a çevrilir)
+  return user;
+});
+
+// server/api/users.post.ts
+import { User } from '@/server/models/user.model'; // Varsayımsal model
+import { z } from 'zod';
+
+// Zod ile doğrulama şeması
+const UserCreateSchema = z.object({
+  name: z.string().min(1, "İsim gereklidir"),
+  email: z.string().email("Geçersiz e-posta adresi"),
+});
+
+export default defineEventHandler(async (event) => {
+  // readValidatedBody, zod şeması ile doğrulama yapar ve hata durumunda otomatik 400 döner
+  const body = await readValidatedBody(event, (data) => UserCreateSchema.safeParse(data));
+
+  if (!body.success) {
+    // Hata detayları body.error içinde bulunur, Nuxt/h3 bunu otomatik yönetir
+    throw createError({
+        statusCode: 400,
+        statusMessage: 'Validation Error',
+        data: body.error.format() // Hata detaylarını ekleyebilirsiniz
+    });
+  }
+
+  // Doğrulanmış veri: body.data
+  const newUser = await User.create(body.data);
+
+  // Oluşturulan kaynağın konumunu başlıkta belirtmek iyi bir pratiktir
+  setHeader(event, 'Location', `/api/users/${newUser.id}`);
+  // Başarılı yanıt (201 Created)
+  setResponseStatus(event, 201);
+  return newUser;
+});
+```
+
+## ❌ Yanlış Kullanım
+```typescript
+// ❌ YANLIŞ: Doğrudan `res.end` veya `res.writeHead` kullanımı
+// Nuxt/h3 yardımcı fonksiyonları (örn. `send`, `createError`) kullanılmalı
+export default defineEventHandler(async (event) => {
+  // event.node.res.statusCode = 404; // YANLIŞ
+  // event.node.res.end('Not Found'); // YANLIŞ
+
+  throw createError({ statusCode: 404, message: 'Bulunamadı' }); // DOĞRU
+});
+
+// ❌ YANLIŞ: Tutarsız yanıt formatı
+export default defineEventHandler(async (event) => {
+    const data = { user: { id: 1, name: "Test" } };
+    // return { data: data }; // Tutarlı bir yapı (örn. JSend) kullanılmalı veya doğrudan obje dönülmeli
+    return data.user; // Doğrudan obje dönmek genellikle yeterlidir
+});
+
+// ❌ YANLIŞ: Hata yönetimini manuel yapmak
+export default defineEventHandler(async (event) => {
+  try {
+    // ... işlem ...
+  } catch (error) {
+    // event.node.res.statusCode = 500; // YANLIŞ
+    // return { error: 'Sunucu Hatası' }; // YANLIŞ
+    throw createError({ statusCode: 500, message: 'İç Sunucu Hatası', cause: error }); // DOĞRU
+  }
+});
+```
+
+## 🔍 Kontrol Listesi
+
+### Kod Kalitesi
+- [ ] Uygun HTTP metodları kullanılıyor mu (GET, POST, PUT, DELETE vb.)?
+- [ ] Girdi doğrulaması uygulanıyor mu (`readValidatedBody`, `getValidatedQuery`)?
+- [ ] Hata yönetimi için `createError` veya `throwError` kullanılıyor mu?
+- [ ] Başarılı yanıtlar için uygun HTTP durum kodları ayarlanıyor mu (örn. 201 for POST)?
+- [ ] RESTful isimlendirme kurallarına uyuluyor mu?
+- [ ] Asenkron işlemler doğru şekilde yönetiliyor mu (`async/await`)?
+
+### Teknik Gereksinimler
+- [ ] İstek gövdesi/parametreleri doğrulanıyor mu?
+- [ ] @error-handling-rules.mdc desenleri kullanılıyor mu?
+- [ ] Uygun TypeScript tipleri kullanılıyor mu?
+- [ ] Veritabanı işlemleri ilgili kurallara (@types-schema-models.mdc) uygun mu?
+
+## 📝 Kural İçeriği Yönergeleri
+- Endpoint tanımı ve rota yapısı ile başlayın.
+- `zod` veya benzeri bir kütüphane ile doğrulama örnekleri ekleyin.
+- `h3`'ün `createError` ve yardımcı fonksiyonları ile hata yönetimi desenlerini gösterin.
+- Yanıt formatlarını belgeleyin (Nuxt genellikle doğrudan obje dönüşünü yönetir).
+- TypeScript tiplerini ekleyin.
+
+## 🔄 Kural Bakımı
+- Yeni Nuxt/h3 sürümleri çıktıkça güncelleyin.
+- Gerektiğinde yeni doğrulama desenleri ekleyin.
+- Yeni hata durumları için hata yönetimini güncelleyin.
+- Güvenlik en iyi uygulamalarını güncel tutun.
+
+## 🧪 Testler
+### Birim Testleri
+- [ ] Rota parametrelerini test edin (`getRouterParam`).
+- [ ] İstek doğrulamasını test edin (`readValidatedBody`, `getValidatedQuery`).
+- [ ] Hata yanıtlarını test edin (`createError`).
+- [ ] Başarılı yanıtları ve durum kodlarını test edin.
+
+### Entegrasyon Testleri
+- [ ] Veritabanı işlemleriyle test edin.
+- [ ] Varsa kimlik doğrulama ile test edin.
+- [ ] Diğer servislerle etkileşimi test edin.
+
+## 💡 İpuçları
+- Uygun HTTP durum kodlarını kullanın.
+- Halka açık endpoint'ler için hız sınırlaması (rate limiting) uygulayın.
+- Geliştirme ortamında istek loglaması ekleyin (`h3`'ün kendi loglama mekanizmaları olabilir).
+- Endpoint'leri odaklanmış ve tek amaçlı tutun.
+- İstek/yanıt için uygun TypeScript tiplerini kullanın.
+- Hata ayıklamayı kolaylaştırmak için `cause` seçeneği ile orijinal hatayı `createError` içine ekleyin.
+
+## ✅ Doğru Kullanım Örnekleri
+
+### 1. Veri Listeleme (GET `/api/users`)
+
+```typescript
+// server/api/users/index.get.ts
+import { defineEventHandler } from 'h3';
+import { listUsers } from '~/server/services/userService'; // Örnek servis
+
+export default defineEventHandler(async (event) => {
+  try {
+    // TODO: Yetkilendirme kontrolü eklenecek
+    // TODO: Sayfalama parametreleri alınacak (query)
+    const users = await listUsers(/* { page, limit } */);
+    return { data: users }; // Başarılı yanıt
+  } catch (error: any) {
+    // Hata durumunda standart formatta yanıt hazırla
+    // Nuxt 3 otomatik olarak uygun status kodunu ayarlayabilir
+    // veya createError kullanabiliriz.
+    throw createError({
+      statusCode: error.statusCode || 500,
+      statusMessage: error.statusMessage || 'Kullanıcılar listelenirken bir hata oluştu.',
+      // normalizeError tarafından okunacak detaylar
+      data: {
+        code: error.code || 'USER_LIST_ERROR',
+        message: error.message || 'Kullanıcılar listelenirken bir hata oluştu.',
+        details: error.details // Varsa ek detaylar (örn. stack trace dev modunda)
+      }
+    });
+  }
+});
+```
+
+### 2. Tek Veri Getirme (GET `/api/users/[id].get.ts`)
+
+```typescript
+// server/api/users/[id].get.ts
+import { defineEventHandler, getRouterParam } from 'h3';
+import { getUserById } from '~/server/services/userService';
+
+export default defineEventHandler(async (event) => {
+  const userId = getRouterParam(event, 'id');
+  if (!userId) {
+      throw createError({ statusCode: 400, statusMessage: 'Kullanıcı ID eksik.', data: { code: 'MISSING_PARAM', message: 'Kullanıcı ID parametresi eksik.' } });
+  }
+
+  try {
+    // TODO: Yetkilendirme kontrolü
+    const user = await getUserById(userId);
+    if (!user) {
+        throw createError({ statusCode: 404, statusMessage: 'Kullanıcı bulunamadı.', data: { code: 'NOT_FOUND', message: `ID'si ${userId} olan kullanıcı bulunamadı.` } });
+    }
+    return { data: user };
+  } catch (error: any) {
+     throw createError({
+      statusCode: error.statusCode || 500,
+      statusMessage: error.statusMessage || 'Kullanıcı getirilirken bir hata oluştu.',
+      data: {
+        code: error.code || 'USER_FETCH_ERROR',
+        message: error.message || 'Kullanıcı getirilirken bir hata oluştu.',
+        details: error.details 
+      }
+    });
+  }
+});
+```
+
+### 3. Veri Oluşturma (POST `/api/users`)
+
+```typescript
+// server/api/users/index.post.ts
+import { defineEventHandler, readBody } from 'h3';
+import { z } from 'zod';
+import { createUser } from '~/server/services/userService';
+import { userCreateSchema } from '~/server/schemas/userSchemas'; // Örnek Zod şeması
+
+export default defineEventHandler(async (event) => {
+  try {
+    // TODO: Yetkilendirme
+    const body = await readBody(event);
+    
+    // Sunucu tarafı doğrulama (Zod ile)
+    const validationResult = userCreateSchema.safeParse(body);
+    if (!validationResult.success) {
+        throw createError({
+            statusCode: 400, 
+            statusMessage: 'Doğrulama hatası', 
+            data: { 
+                code: 'VALIDATION_ERROR', 
+                message: 'Gönderilen veriler geçersiz.', 
+                // Alan bazlı hataları normalizeError'ın işlemesi için details'e ekle
+                details: validationResult.error.flatten().fieldErrors 
+            } 
+        });
+    }
+
+    const newUser = await createUser(validationResult.data);
+    // Başarılı oluşturma yanıtı (genellikle oluşturulan kaynağın kendisi veya ID'si)
+    event.node.res.statusCode = 201; // Created status kodu
+    return { data: newUser }; 
+
+  } catch (error: any) {
+     // Zaten createError ile fırlatılanlar veya diğer hatalar
+     if (error.data?.code) { // Eğer zaten bizim formatımızdaysa tekrar sarmalama
+        throw error;
+     }
+     throw createError({
+      statusCode: error.statusCode || 500,
+      statusMessage: error.statusMessage || 'Kullanıcı oluşturulurken bir hata oluştu.',
+      data: {
+        code: error.code || 'USER_CREATE_ERROR',
+        message: error.message || 'Kullanıcı oluşturulurken bir hata oluştu.',
+        details: error.details 
+      }
+    });
+  }
+});
+```
+
+## 📝 Önemli Notlar
+
+*   **Başarı Yanıtları:** Başarılı yanıtlar genellikle `{ data: ... }` formatında olmalıdır. Bu, istemci tarafında (`$fetch`) veriye tutarlı bir şekilde erişimi kolaylaştırır.
+*   **Hata Yanıtları:**
+    *   Hatalar, Nuxt 3'ün `createError` yardımcı fonksiyonu kullanılarak fırlatılmalıdır.
+    *   `createError` içindeki `data` alanı, istemcideki `normalizeError` fonksiyonunun beklediği `IApiError` formatına uygun olmalıdır (`{ code: string, message: string, details?: any }`).
+    *   `statusCode` (örn. 400, 404, 500) HTTP durumunu belirtir.
+    *   `data.code` hatanın programatik olarak işlenmesini sağlar (örn. `'VALIDATION_ERROR'`, `'AUTH_REQUIRED'`, `'NOT_FOUND'`).
+    *   `data.message` kullanıcıya gösterilebilecek veya loglanacak mesajdır.
+    *   `data.details` ek bilgiler içerir. Özellikle **doğrulama hatalarında (`VALIDATION_ERROR`)**, Zod'un `flatten().fieldErrors` sonucu gibi, alan adlarını anahtar, hata mesajlarını değer olarak içeren bir obje olmalıdır. Bu, `useFormHandler` veya `displayFormError`'ın `setErrors` ile alanları işaretlemesini sağlar.
+*   **Doğrulama:** Sunucu tarafı doğrulamalar (Zod veya başka bir kütüphane ile) API katmanında yapılmalı ve `VALIDATION_ERROR` kodu ile uygun `details` objesi döndürülmelidir.
+*   **Servis Katmanı:** Veritabanı işlemleri ve iş mantığı ayrı servis fonksiyonlarına (örn. `~/server/services/...`) taşınmalıdır. API endpoint'leri sadece istek/yanıt işleme ve servis çağırma ile ilgilenmelidir.
+

@@ -1,0 +1,172 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Genel Tipler, Şemalar ve Modeller Kuralları
+
+## 🎯 Kural Tipi Yapılandırması
+
+### Birincil Kural Tipi Seçimi
+- [x] Her zaman: Her istekte otomatik olarak uygulanır (örn. kod stili, güvenlik kontrolleri) - *Tiplerin her zaman tutarlı olması gerektiği için bu seçilebilir.*
+- [ ] Manuel: Yalnızca manuel olarak çağrıldığında kullanılır
+- [ ] Otomatik Eklenmiş: Belirli dosyalar/durumlar için otomatik olarak tetiklenir
+- [ ] Ajan Tarafından İstenen: AI tarafından gerektiğinde çağrılır
+
+type: always # Veya projenin ihtiyacına göre 'manual'/'auto attached' olabilir
+description: Uygulama genelinde kullanılacak temel TypeScript arayüzlerini, tiplerini, enum'larını ve potansiyel olarak Zod gibi doğrulama şemalarını tanımlar.
+globs: types/**/*.ts, interfaces/**/*.ts, server/types/**/*.ts # Proje yapısına göre ayarlanabilir
+
+## 📋 Sorumluluklar
+
+### TypeScript Arayüzleri (Interfaces)
+- Uygulama genelindeki temel veri yapıları için (örn. `IUser`, `IProduct`, `IApiResponse`) arayüzler tanımlayın.
+- Arayüz isimlerini `I` ön eki ile başlatın (yaygın bir pratik).
+- Alanları ve tiplerini açıkça belirtin.
+- İsteğe bağlı alanlar için `?` kullanın.
+
+### TypeScript Tipleri (Types)
+- Karmaşık veya birleşik tipler için `type` anahtar kelimesini kullanın (örn. `type Status = 'pending' | 'completed' | 'failed';`).
+- Yardımcı tipler veya belirli formatlar için tipler oluşturun (örn. `type IsoDateString = string;`).
+
+### Enum Sabitleri (Enums)
+- Belirli bir grup sabit değer için (örn. kullanıcı rolleri, sipariş durumları) `enum` kullanın.
+- String veya numeric enum'lar tanımlanabilir.
+
+### Doğrulama Şemaları (örn. Zod)
+- API isteklerini veya veritabanına kaydedilecek verileri doğrulamak için Zod gibi kütüphanelerle merkezi şemalar tanımlayın.
+- Bu şemalar hem API endpoint kurallarında (`@api-endpoints.mdc`) hem de model kurallarında (`@mongoose-models.mdc`) kullanılabilir.
+- Şemaları ilgili arayüzlerle tutarlı tutun.
+
+### Paylaşılan Yardımcı Tipler
+- Proje genelinde sık kullanılan yardımcı tipleri (örn. `Pagination<T>`, `SortOrder`) burada tanımlayın.
+
+## 🧩 Anahtar Bileşenler
+- Arayüzler (`interface`): Nesne yapılarının sözleşmeleri.
+- Tipler (`type`): Özel tip takma adları ve birleşimleri.
+- Enumlar (`enum`): Sabit değer kümeleri.
+- Doğrulama Şemaları (örn. `z.object`): Veri doğrulama kuralları.
+
+## 📦 Bağımlılıklar
+
+### Gerekli Paketler
+- `typescript`: (Projenin temel bağımlılığı)
+- `zod`: (İsteğe bağlı, eğer doğrulama şemaları için kullanılıyorsa)
+
+### Gerekli Kurallar
+- Yok (Bu genellikle temel kuraldır)
+
+## ✅ Doğru Kullanım
+```typescript
+// types/shared.types.ts veya interfaces/user.interface.ts
+
+// --- Arayüzler --- 
+export interface IBaseModel {
+  _id: string; // Veya veritabanı ID tipi
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IUser extends IBaseModel {
+  name: string;
+  email: string;
+  role: UserRole;
+  isActive?: boolean;
+}
+
+export interface IApiResponse<T> {
+  status: 'success' | 'error';
+  data?: T;
+  message?: string;
+  error?: any; // Daha spesifik bir hata tipi tanımlanabilir
+}
+
+// --- Enumlar --- 
+export enum UserRole {
+  Admin = 'ADMIN',
+  Editor = 'EDITOR',
+  Viewer = 'VIEWER',
+}
+
+// --- Tipler --- 
+export type Status = 'pending' | 'processing' | 'completed' | 'failed';
+
+export type SortDirection = 'asc' | 'desc';
+
+// --- Zod Doğrulama Şemaları (Örnek) ---
+import { z } from 'zod';
+
+export const BaseSchema = z.object({
+    _id: z.string().optional(), // Genellikle otomatik oluşur
+    createdAt: z.date().optional(),
+    updatedAt: z.date().optional(),
+});
+
+export const UserSchema = BaseSchema.extend({
+    name: z.string().min(1, "İsim gereklidir"),
+    email: z.string().email("Geçersiz e-posta adresi"),
+    role: z.nativeEnum(UserRole).default(UserRole.Viewer),
+    isActive: z.boolean().optional().default(true),
+});
+
+// API için oluşturma şeması (ID ve tarihler olmadan)
+export const UserCreateSchema = UserSchema.omit({ _id: true, createdAt: true, updatedAt: true });
+
+```
+
+## ❌ Yanlış Kullanım
+```typescript
+// ❌ YANLIŞ: Tipleri her yerde tekrar tanımlamak
+// API Endpoint:
+// interface UserResponse { name: string; email: string; ... }
+// Mongoose Model:
+// interface IUserDoc { name: string; email: string; ... }
+
+// ❌ YANLIŞ: Genel olmayan veya çok spesifik tipleri burada tanımlamak
+// type SpecificComponentStateType = { count: number; title: string }; // Bu, component içinde tanımlanmalı
+
+// ❌ YANLIŞ: Doğrulama mantığını tiplerin içine gömmek (Zod gibi ayrı şemalar daha iyi)
+// interface IUser { email: string; // validateEmail() metodu burada olmamalı }
+
+// ❌ YANLIŞ: `any` veya `object` gibi belirsiz tipleri sık kullanmak
+// type GenericData = any; // Daha spesifik olmalı
+```
+
+## 🔍 Kontrol Listesi
+
+### Kod Kalitesi
+- [ ] Arayüz isimleri `I` ile başlıyor mu?
+- [ ] Tipler açık ve anlaşılır mı?
+- [ ] `any` veya `object` yerine spesifik tipler kullanılıyor mu?
+- [ ] Enumlar mantıksal gruplamalar için mi kullanılıyor?
+- [ ] Zod şemaları (varsa) ilgili arayüzlerle tutarlı mı?
+- [ ] Gereksiz veya kullanılmayan tipler var mı?
+
+### Teknik Gereksinimler
+- [ ] Tanımlar uygulama genelinde yeniden kullanılabilir mi?
+- [ ] Proje yapısına uygun dosya/klasörlerde mi tanımlanmış?
+
+## 📝 Kural İçeriği Yönergeleri
+- Uygulamanın temel veri yapıları için arayüzlerle başlayın.
+- Tekrarlayan değer kümeleri için enumları tanımlayın.
+- Yardımcı veya birleşik tipler için `type` kullanın.
+- Eğer kullanılıyorsa, Zod gibi kütüphanelerle temel doğrulama şemalarını ekleyin.
+- Tipleri mantıksal olarak gruplayın (örn. `user.types.ts`, `shared.types.ts`).
+
+## 🔄 Kural Bakımı
+- Yeni temel veri yapıları eklendikçe güncelleyin.
+- Proje genelinde tip ihtiyaçları değiştikçe güncelleyin.
+- Kullanılan kütüphanelerin (örn. Zod) sürümleri değiştikçe şemaları güncelleyin.
+
+## 🧪 Testler
+- Bu kural dosyası genellikle doğrudan test edilmez, ancak bu tipleri kullanan diğer kodlar (API testleri, model testleri) bu tiplerin doğruluğunu dolaylı olarak test eder.
+- Zod şemaları için birim testleri yazılabilir.
+
+## 💡 İpuçları
+- Karmaşık nesneler için iç içe arayüzler kullanın.
+- TypeScript'in `Utility Types` (örn. `Partial<T>`, `Readonly<T>`, `Omit<T, K>`, `Pick<T, K>`) özelliklerinden faydalanın.
+- `zod` kullanıyorsanız, `z.infer<typeof Schema>` ile şemalardan otomatik olarak TypeScript tipleri türetin, böylece tipleri iki kez yazmaktan kurtulun.
+  ```typescript
+  export const UserSchema = z.object({...});
+  export type IUser = z.infer<typeof UserSchema>; // Otomatik tip türetme
+  ```

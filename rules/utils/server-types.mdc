@@ -1,0 +1,231 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Server Types Rules
+
+## 🎯 Rule Type Configuration
+
+### Primary Rule Type Selection
+- [x] Manual: Used only when manually called (e.g., special code generation templates)
+
+## 📋 Required Directory Structure
+```
+server/
+├── types/                       # Server-side type definitions [REQUIRED]
+│   ├── index.ts                # Type exports [REQUIRED]
+│   ├── models/                 # Data model types [REQUIRED]
+│   │   ├── index.ts           # Model type exports
+│   │   ├── base.ts           # Base model interfaces
+│   │   └── [resource].ts     # Resource-specific types
+│   ├── api/                   # API related types [REQUIRED]
+│   │   ├── index.ts          # API type exports
+│   │   ├── requests.ts       # Request DTOs
+│   │   └── responses.ts      # Response DTOs
+│   ├── errors/               # Error types [REQUIRED]
+│   │   ├── index.ts         # Error type exports
+│   │   └── custom.ts        # Custom error definitions
+│   └── utils/               # Utility types
+        └── index.ts         # Utility type exports
+```
+
+## 📋 Required Implementations
+
+### Core Types [REQUIRED]
+```typescript
+// Location: server/types/models/base.ts
+export interface BaseModel {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date;
+}
+
+export interface Timestamps {
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date;
+}
+
+export interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+}
+```
+
+### API Types [REQUIRED]
+```typescript
+// Location: server/types/api/responses.ts
+export interface ApiResponse<T> {
+  data: T;
+  meta?: PaginationMeta;
+  error?: ApiError;
+}
+
+export interface PaginationMeta {
+  currentPage: number;
+  itemsPerPage: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+export interface ApiError {
+  code: string;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+// Location: server/types/api/requests.ts
+export interface PaginationQuery {
+  page?: number;
+  limit?: number;
+  sort?: string;
+  order?: 'asc' | 'desc';
+}
+```
+
+### Error Types [REQUIRED]
+```typescript
+// Location: server/types/errors/custom.ts
+export class BaseError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public statusCode: number,
+    public details?: Record<string, unknown>
+  ) {
+    super(message);
+    this.name = this.constructor.name;
+  }
+}
+
+export class ValidationError extends BaseError {
+  constructor(message: string, details?: Record<string, unknown>) {
+    super(message, 'VALIDATION_ERROR', 400, details);
+  }
+}
+```
+
+## 📋 Dependencies
+
+### Required Packages
+- `typescript`: ^5.0.0 (Type system) [REQUIRED]
+- `zod`: ^3.0.0 (Runtime type validation) [REQUIRED]
+
+### Required Rules
+- error-handling-rules.mdc [REQUIRED]
+- validation-rules.mdc [REQUIRED]
+
+## ✅ Correct Usage
+```typescript
+// Location: server/types/models/user.ts
+import { BaseModel } from './base';
+
+export interface User extends BaseModel {
+  email: string;
+  username: string;
+  role: UserRole;
+  status: UserStatus;
+}
+
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  USER = 'USER'
+}
+
+export enum UserStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE'
+}
+
+// Location: server/api/users/create.post.ts
+import type { User } from '@/types/models/user';
+import type { ApiResponse } from '@/types/api/responses';
+
+export default defineEventHandler<ApiResponse<User>>(async (event) => {
+  // Implementation
+})
+```
+
+## ❌ Incorrect Usage
+```typescript
+// ❌ DON'T: Use any type
+interface BadUser {
+  id: any;
+  data: any;
+}
+
+// ❌ DON'T: Duplicate base types
+interface WrongUser {
+  id: string;
+  createdAt: Date;  // Wrong: Use BaseModel instead
+  name: string;
+}
+
+// ❌ DON'T: Inconsistent response format
+return {
+  user: userData  // Wrong: Use ApiResponse<T> format
+}
+```
+
+## 🔍 Implementation Checklist
+
+### Required Files
+- [ ] Base model types (base.ts)
+- [ ] API response/request types
+- [ ] Error type definitions
+- [ ] Index exports for all directories
+- [ ] Resource-specific model types
+
+### Required Types
+- [ ] BaseModel interface
+- [ ] ApiResponse interface
+- [ ] Error types
+- [ ] Enum types for constants
+- [ ] Resource-specific interfaces
+
+### Required Type Exports
+- [ ] Export all types from index files
+- [ ] Export error types
+- [ ] Export API types
+- [ ] Export model types
+
+### Required Type Safety
+- [ ] No any types
+- [ ] Proper type inheritance
+- [ ] Consistent naming conventions
+- [ ] Proper type exports
+
+## 📝 Rule Content Guidelines
+- Use TypeScript strict mode
+- Follow naming conventions
+- Document complex types
+- Use generics where appropriate
+- Keep types focused and single-purpose
+
+## 🔄 Rule Maintenance
+- Update types when models change
+- Keep response types current
+- Remove unused types
+- Update based on API changes
+
+## 🧪 Tests
+### Type Tests [REQUIRED]
+- [ ] Test type compatibility
+- [ ] Test type constraints
+- [ ] Test type inference
+
+### Integration Tests [REQUIRED]
+- [ ] Test with API endpoints
+- [ ] Test with database models
+- [ ] Test with validation schemas
+
+## 💡 Tips
+- Always extend BaseModel for database models
+- Use enums for fixed values
+- Document complex type structures
+- Keep types DRY (Don't Repeat Yourself)
+- Use type inference when possible
+- Follow consistent naming patterns

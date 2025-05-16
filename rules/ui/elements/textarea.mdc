@@ -1,0 +1,151 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# UI Element: Textarea Kuralları (`<UTextarea>`)
+
+## 🎯 Kural Tipi Yapılandırması
+
+### Birincil Kural Tipi Seçimi
+- [ ] Her zaman
+- [x] Manuel: Çok satırlı metin girişi gerektiğinde başvurulur
+- [ ] Otomatik Eklenmiş
+- [ ] Ajan Tarafından İstenen
+
+type: manual
+description: Nuxt UI `<UTextarea>` bileşeninin doğru ve tutarlı kullanımı için standartları tanımlar.
+globs: components/**/*.vue, pages/**/*.vue
+
+## 📋 Sorumluluklar
+
+### Temel Kullanım
+- Açıklama, yorum, uzun metin gibi çok satırlı kullanıcı girdileri için `<UInput>` yerine `<UTextarea>` kullanın.
+- Her zaman bir `<UFormGroup>` içine yerleştirin (`@form-start.mdc` kuralına bakın) etiket, yardım metni ve hata gösterimi için.
+- `v-model` direktifi ile form state'indeki ilgili alana bağlayın.
+
+### Prop Kullanımı
+- **`rows`**: Başlangıçta görünecek satır sayısını belirler. `autoresize` aktif değilse sabit yüksekliği ifade eder.
+- **`autoresize`**: İçeriğe göre yüksekliğin otomatik olarak ayarlanmasını sağlar (`true`/`false`).
+- **`maxrows`**: `autoresize` aktifken, textarea'nın ulaşabileceği maksimum satır sayısını sınırlar.
+- **`placeholder`**: Alan boşken görünecek ipucu metnini ayarlayın.
+- **`disabled`**: Alanı etkileşimlere kapatmak için.
+- **`readonly`**: Alanın değerinin değiştirilmesini engellemek ama seçilebilir/kopyalanabilir tutmak için.
+- **`size`**: Alanın boyutunu ayarlayın (`xs`, `sm`, `md`, `lg`, `xl`). Metin boyutu ve dolguyu etkiler.
+- **`color`**: Alanın rengini ayarlayın. Hata durumunda otomatik olarak `red` olur.
+- **`variant`**: Alanın stilini değiştirin (`outline`, `none`).
+- **`avatar`**: Sol üst köşeye bir `<UAvatar>` bileşeni eklemek için avatar prop'larını içeren bir obje alır.
+- **`ui`**: Bileşenin stilini özelleştirmek için.
+
+### Erişilebilirlik
+- `<UFormGroup>` içinde kullanıldığında etiket (`label`) ve `id` otomatik olarak yönetilir.
+- `placeholder` bilgilendirici olmalı ancak etiketin yerini tutmamalıdır.
+
+## 🧩 Anahtar Bileşenler
+- `<UTextarea>`: Çok satırlı metin girdi bileşeni.
+- `<UFormGroup>`: Sarmalayıcı bileşen (etiket, hata vb. için).
+
+## 📦 Bağımlılıklar
+
+### Gerekli Paketler
+- `@nuxt/ui`
+
+### Gerekli Kurallar
+- @form-start.mdc (Formun genel yapısı ve `<UFormGroup>` kullanımı için)
+
+## ✅ Doğru Kullanım
+```vue
+<template>
+  <UForm :state="state" :schema="schema" @submit="onSubmit" class="space-y-4">
+    <!-- Temel Kullanım -->
+    <UFormGroup label="Açıklama" name="description">
+      <UTextarea v-model="state.description" placeholder="Proje detaylarını girin..." />
+    </UFormGroup>
+
+    <!-- Otomatik Boyutlandırma (max 5 satır) -->
+    <UFormGroup label="Yorum" name="comment">
+      <UTextarea 
+        v-model="state.comment" 
+        placeholder="Yorumunuzu yazın..."
+        autoresize
+        :maxrows="5"
+        :rows="2" <!-- Başlangıç satır sayısı -->
+      />
+    </UFormGroup>
+
+    <!-- Sabit Yükseklik (autoresize=false) -->
+    <UFormGroup label="Notlar" name="notes">
+      <UTextarea v-model="state.notes" :rows="4" />
+    </UFormGroup>
+
+    <!-- Avatar ile -->
+     <UFormGroup label="Geri Bildirim" name="feedback">
+       <UTextarea 
+         v-model="state.feedback"
+         placeholder="Ne düşünüyorsunuz?"
+         :avatar="{ src: 'https://github.com/nuxt.png' }"
+       />
+    </UFormGroup>
+
+    <UButton type="submit">Gönder</UButton>
+  </UForm>
+</template>
+
+<script setup lang="ts">
+import { reactive } from 'vue';
+// ... (schema, onSubmit tanımlamaları @form-start.mdc'deki gibi)
+
+// Örnek state
+const state = reactive({
+    description: '',
+    comment: '',
+    notes: '',
+    feedback: ''
+})
+
+// Örnek şema
+import { z } from 'zod';
+const schema = z.object({
+    description: z.string().optional(),
+    comment: z.string().optional(),
+    notes: z.string().optional(),
+    feedback: z.string().optional(),
+})
+
+function onSubmit(event: any) {
+    console.log('Submitted:', event.data)
+}
+</script>
+```
+
+## ❌ Yanlış Kullanım
+- Tek satırlık girdi için `<UTextarea>` kullanmak (performans ve semantik olarak `<UInput>` daha uygundur).
+- `<UTextarea>`'yı `<UFormGroup>` olmadan kullanmak.
+- `autoresize` aktifken `rows` prop'unun sabit yüksekliği belirlediğini düşünmek (sadece başlangıç yüksekliğini etkiler).
+
+## 🔍 Kontrol Listesi
+- [ ] `<UTextarea>`, `<UFormGroup>` içinde mi kullanılıyor?
+- [ ] `v-model` ile state'e doğru bağlanmış mı?
+- [ ] Çok satırlı girdi için mi kullanılıyor?
+- [ ] `autoresize`, `rows`, `maxrows` prop'ları ihtiyaca göre doğru ayarlanmış mı?
+- [ ] `placeholder` metni açıklayıcı mı?
+- [ ] Gerektiğinde `avatar`, `disabled` gibi ek prop'lar kullanılmış mı?
+
+## 📝 Kural İçeriği Yönergeleri
+- `<UTextarea>`'nın ne zaman `<UInput>` yerine tercih edilmesi gerektiğini açıklayın.
+- `rows`, `autoresize`, `maxrows` gibi temel prop'ları ve etkileşimlerini vurgulayın.
+- `avatar` prop'unun kullanımını gösterin.
+
+## 🔄 Kural Bakımı
+- Nuxt UI güncellemeleriyle gelen yeni `<UTextarea>` prop'larını veya özelliklerini ekleyin.
+
+## 🧪 Testler
+- Component testleri ile:
+  - [ ] `v-model` ile state ve textarea değeri arasındaki iki yönlü bağlantıyı test edin.
+  - [ ] `rows` prop'unun başlangıç yüksekliğini etkilediğini test edin.
+  - [ ] `autoresize` prop'u aktifken uzun metin girildiğinde yüksekliğin arttığını test edin.
+  - [ ] `maxrows` prop'unun maksimum yüksekliği sınırladığını test edin.
+  - [ ] `disabled` prop'unun etkileşimi engellediğini test edin.
+
+## 💡 İpuçları
+- Zengin metin düzenleyici (WYSIWYG) gerektiren durumlar için `<UTextarea>` yerine TipTap, Quill gibi editörlerle entegre edilmiş özel bir bileşen veya Nuxt Content gibi modüller daha uygun olabilir.

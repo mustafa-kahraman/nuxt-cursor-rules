@@ -1,0 +1,184 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# @rule-template.mdc
+
+# Kural: Form Gönderim Desenleri
+
+**Dosya:** `rules/ui/form-submission-patterns.mdc`
+
+**Açıklama:** Nuxt uygulamalarında form gönderim süreçlerinin (yüklenme durumu, başarı ve hata bildirimleri) yönetimi için standart desenleri tanımlar.
+
+## 🎯 Amaç
+
+*   Kullanıcıya form gönderimi sırasında net geri bildirim sağlamak.
+*   Tekrarlayan gönderim mantığını azaltmak.
+*   Başarı ve hata durumlarını tutarlı bir şekilde ele almak.
+
+## ⚙️ Temel Desen
+
+Form gönderimi genellikle aşağıdaki adımları içerir:
+
+1.  **Başlatma:** Kullanıcı formu gönderme eylemini tetikler (`<UForm @submit>`).
+2.  **Doğrulama:** `<UForm>` otomatik olarak Zod şemasıyla doğrulamayı çalıştırır.
+3.  **Yüklenme Durumu:** Doğrulama başarılıysa, bir `loading` state'i `true` yapılır (genellikle butonu devre dışı bırakmak ve/veya bir gösterge göstermek için).
+4.  **API Çağrısı:** Form verileri ilgili API endpoint'ine gönderilir (genellikle Pinia action'ı aracılığıyla).
+5.  **Sonuç İşleme:**
+    *   **Başarı:** API çağrısı başarılı olursa:
+        *   Kullanıcıya başarı mesajı gösterilir (örn. `useToast().add()`).
+        *   Gerekirse form sıfırlanır veya kullanıcı başka bir sayfaya yönlendirilir.
+    *   **Hata:** API çağrısı başarısız olursa:
+        *   Pinia store'dan dönen veya doğrudan yakalanan hata `normalizeError` ile işlenir.
+        *   Genel hatalar formun üstünde bir `<UAlert>` ile gösterilir (`form-error-handling.mdc` kuralına bakın).
+        *   Alan bazlı hatalar (varsa ve `details` içinde geliyorsa) `<UForm>`'un `setErrors` metodu ile ilgili alanlara atanır (`form-error-handling.mdc` kuralına bakın).
+6.  **Yüklenme Durumunu Bitirme:** Başarılı veya başarısız olsun, `loading` state'i `false` yapılır.
+
+## ✅ Örnek Uygulama (Composable ile)
+
+Bu örnek, `useFormHandler` composable'ını kullanarak aynı form gönderim mantığını nasıl daha temiz bir şekilde uygulayacağımızı gösterir.
+
+```vue
+<template>
+  <UForm 
+    ref="formRef" <!-- setErrors için ref -->
+    :state="state"
+    :schema="schema"
+    @submit="submit"
+    class="space-y-4"
+  >
+    <!-- Genel Hata Mesajı Alanı -->
+    <UAlert
+      v-if="formError"
+      icon="i-heroicons-exclamation-triangle"
+      color="red"
+      variant="soft"
+      :title="formError.message" <!-- Composable'dan gelen error state'i kullanılıyor -->
+      :description="formError.code !== 'VALIDATION_ERROR' ? formError.details?.value || formError.code : 'Lütfen formdaki hataları düzeltin.'"
+      closable
+      @close="formError = null" <!-- Hata manuel olarak kapatılabilir -->
+    />
+
+    <UFormGroup label="İsim" name="name">
+      <UInput v-model="state.name" />
+    </UFormGroup>
+
+    <UFormGroup label="E-posta" name="email">
+      <UInput v-model="state.email" type="email" />
+    </UFormGroup>
+
+    <!-- Diğer form alanları... -->
+
+    <UButton 
+      type="submit" 
+      :loading="isLoading" <!-- Composable'dan gelen isLoading state'i kullanılıyor -->
+      label="Kaydet"
+      />
+  </UForm>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, watch } from 'vue';
+import { z } from 'zod';
+import type { Form } from '#ui/types';
+import { useMyFeatureStore } from '~/stores/myFeature';
+import { useFormHandler } from '~/composables/useFormHandler'; // Composable import edildi
+import type { IApiError } from '~/utils/error';
+
+const store = useMyFeatureStore();
+const toast = useToast();
+const formRef = ref<Form<any>>(); 
+
+// Örnek State ve Şema
+const state = reactive({
+  name: '',
+  email: '',
+});
+
+const schema = z.object({
+  name: z.string().min(1, 'İsim alanı zorunludur.'),
+  email: z.string().email('Geçersiz e-posta adresi.'),
+});
+
+type SchemaOutput = z.output<typeof schema>;
+// Pinia action'ının dönüş tipi (başarı durumunda)
+// Örnek: { id: string; message: string }
+interface ApiSuccessResult {
+  id: string;
+  message: string;
+}
+
+// Composable'ı kullanma
+const { isLoading, error: formError, submit } = useFormHandler<typeof schema, ApiSuccessResult>({
+  schema, // Zod şeması
+  // Gönderim fonksiyonu (Pinia action'ını çağırma)
+  onSubmit: async (formData: SchemaOutput) => {
+    // Not: Pinia action'ının artık sadece başarı durumunda veri,
+    // hata durumunda ise throw etmesi beklenir.
+    // Veya önceki gibi { success: boolean, ... } döndürebilir,
+    // o zaman burada kontrol gerekir.
+    // Basitlik için action'ın throw ettiğini varsayalım.
+    formRef.value?.clear(); // Her gönderim öncesi eski hataları temizle
+    return await store.createData(formData); 
+  },
+  // Başarı callback'i
+  onSuccess: (result: ApiSuccessResult) => {
+    toast.add({ title: 'Başarılı!', description: result.message || 'Veri kaydedildi.', color: 'green' });
+    // state'i sıfırla veya yönlendirme yap
+    // state.name = ''; state.email = ''; 
+    // await navigateTo(`/items/${result.id}`);
+  },
+  // Hata callback'i (opsiyonel, error state'i zaten güncelleniyor)
+  onError: (error: IApiError) => {
+      console.log("FormHandler onError callback tetiklendi:", error);
+      // Alan bazlı hataları burada setErrors ile işleyebiliriz
+      // Çünkü composable'dan gelen error state'i güncellendiğinde burası çalışır
+      if (formRef.value && error.details && typeof error.details === 'object' && error.code === 'VALIDATION_ERROR') {
+        const fieldErrors = Object.entries(error.details).map(([key, value]) => ({
+            path: key,
+            message: Array.isArray(value) ? value.join(', ') : String(value),
+        }));
+        formRef.value.setErrors(fieldErrors);
+      }
+      // İsteğe bağlı: Diğer hata kodlarına göre özel işlemler
+      // if (error.code === '...') { ... }
+  }
+});
+
+// Alternatif: onError callback kullanmadan error state'ini izleyerek alan hatalarını ayarlama
+/*
+watch(formError, (newError) => {
+  if (formRef.value && newError?.details && typeof newError.details === 'object' && newError.code === 'VALIDATION_ERROR') {
+      const fieldErrors = Object.entries(newError.details).map(([key, value]) => ({
+          path: key,
+          message: Array.isArray(value) ? value.join(', ') : String(value),
+      }));
+      formRef.value.setErrors(fieldErrors);
+  } else if (!newError) {
+      // Hata temizlendiğinde alan hatalarını da temizle
+      formRef.value?.clear();
+  }
+});
+*/
+
+</script>
+```
+
+## 📌 Önemli Notlar
+
+*   **Composable Kullanımı:** Örnek, `useFormHandler` composable'ının kullanımını gösterir. Bu, component içindeki gönderim mantığını önemli ölçüde azaltır.
+*   **Hata Yönetimi:** Composable, `isLoading` ve normalize edilmiş `error` state'ini yönetir. Component, bu `error` state'ini kullanarak `<UAlert>` gibi genel hata mesajlarını gösterebilir. Alan bazlı hatalar (`setErrors`), composable'ın `onError` callback'i içinde veya `error` state'ini `watch` ederek component tarafında yönetilmelidir.
+*   **Alan Hatalarını Temizleme:** Form gönderimi başlamadan önce (`onSubmit` içinde) veya `error` state'i `null` olduğunda (`watch` bloğunda) `formRef.value?.clear()` çağrılarak önceki alan hatalarının temizlenmesi önerilir.
+*   **Pinia Action Beklentisi:** `useFormHandler` örneği, `onSubmit` olarak verilen fonksiyonun (örn. Pinia action) başarı durumunda bir sonuç döndürmesini, hata durumunda ise bir hata *fırlatmasını* (throw) bekler. Composable bu hatayı yakalayıp `normalizeError` ile işler. Eğer action hata fırlatmak yerine `{ success: false, error: ... }` döndürüyorsa, `onSubmit` içinde bu durum kontrol edilip manuel olarak hata fırlatılmalıdır.
+
+## 📚 Başvurular
+
+*   [Nuxt UI UForm Dokümantasyonu](https://ui.nuxt.com/forms/form)
+*   [Nuxt UI UAlert Dokümantasyonu](https://ui.nuxt.com/elements/alert)
+*   [Nuxt UI UButton Dokümantasyonu](https://ui.nuxt.com/elements/button)
+*   [Nuxt UI useToast Dokümantasyonu](https://ui.nuxt.com/overlays/toast)
+*   `./form-error-handling.mdc`
+*   `../state/pinia-store-structure.mdc`
+*   `../../utils/error.ts`
+*   `../../composables/useFormHandler.ts` (Yeni eklendi)

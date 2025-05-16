@@ -1,0 +1,179 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# UI Element: Input Kuralları (`<UInput>`)
+
+## 🎯 Kural Tipi Yapılandırması
+
+### Birincil Kural Tipi Seçimi
+- [ ] Her zaman
+- [x] Manuel: Spesifik bir input kullanımı gerektiğinde başvurulur
+- [ ] Otomatik Eklenmiş
+- [ ] Ajan Tarafından İstenen
+
+type: manual
+description: Nuxt UI `<UInput>` bileşeninin doğru ve tutarlı kullanımı için standartları tanımlar.
+globs: components/**/*.vue, pages/**/*.vue
+
+## 📋 Sorumluluklar
+
+### Temel Kullanım
+- Metin, e-posta, şifre, sayı gibi temel kullanıcı girdileri için `<UInput>` kullanın.
+- Her zaman bir `<UFormGroup>` içine yerleştirin (`@form-start.mdc` kuralına bakın) etiket, yardım metni ve hata gösterimi için.
+- `v-model` direktifi ile form state'indeki ilgili alana bağlayın.
+
+### Prop Kullanımı
+- **`type`**: Girdi tipini belirtin (`text`, `password`, `email`, `number`, `tel`, `url`). Tarayıcı davranışını ve klavye türünü etkiler.
+- **`placeholder`**: Alan boşken görünecek ipucu metnini ayarlayın.
+- **`icon`**: Sol tarafa ikon eklemek için (örn. `i-heroicons-envelope`).
+- **`trailing-icon`**: Sağ tarafa ikon eklemek için (örn. şifre gösterme/gizleme butonu, arama ikonu).
+- **`loading-icon`**: Sağ tarafta yükleme göstergesi ikonu (genellikle `i-heroicons-arrow-path`).
+- **`loading`**: `loading-icon`'u göstermek için `true` yapın.
+- **`disabled`**: Alanı etkileşimlere kapatmak için.
+- **`readonly`**: Alanın değerinin değiştirilmesini engellemek ama seçilebilir/kopyalanabilir tutmak için.
+- **`size`**: Alanın boyutunu ayarlayın (`xs`, `sm`, `md`, `lg`, `xl`). `<UFormGroup>` `size` prop'u ile senkronize olmalıdır.
+- **`color`**: Alanın rengini ayarlayın (genellikle `primary`, `gray` vb.). Hata durumunda otomatik olarak `red` olur.
+- **`variant`**: Alanın stilini değiştirin (`outline`, `none`).
+- **`textarea`**: Eğer çok satırlı girdi gerekiyorsa `<UInput>` yerine `<UTextarea>` kullanın (@ui-textarea.mdc).
+- **`ui`**: Bileşenin stilini özelleştirmek için.
+
+### Erişilebilirlik
+- `<UFormGroup>` içinde kullanıldığında etiket (`label`) ve `id` otomatik olarak yönetilir.
+- `placeholder` bilgilendirici olmalı ancak etiketin yerini tutmamalıdır.
+- `disabled` ve `readonly` durumlarını uygun şekilde kullanın.
+
+### Yaygın Kullanım Senaryoları
+- **Şifre Alanı:** `type="password"` kullanın. Şifreyi gösterme/gizleme işlevselliği için `trailing-icon` ve bir tıklama olayı ekleyebilirsiniz.
+- **Arama Alanı:** Sol tarafta arama ikonu (`icon="i-heroicons-magnifying-glass"`) veya sağ tarafta temizleme butonu (`trailing-icon="i-heroicons-x-mark..."`) kullanın.
+- **Yükleme Durumu:** Bir arama veya doğrulama yapılırken `loading` prop'unu `true` yapın.
+
+## 🧩 Anahtar Bileşenler
+- `<UInput>`: Temel girdi bileşeni.
+- `<UFormGroup>`: Sarmalayıcı bileşen (etiket, hata vb. için).
+
+## 📦 Bağımlılıklar
+
+### Gerekli Paketler
+- `@nuxt/ui`
+
+### Gerekli Kurallar
+- @form-start.mdc (Formun genel yapısı ve `<UFormGroup>` kullanımı için)
+
+## ✅ Doğru Kullanım
+```vue
+<template>
+  <UForm :state="state" :schema="schema" @submit="onSubmit">
+    <!-- Temel Kullanım -->
+    <UFormGroup label="İsim" name="name" required>
+      <UInput v-model="state.name" placeholder="Adınız ve Soyadınız" />
+    </UFormGroup>
+
+    <!-- E-posta Alanı (ikonlu) -->
+    <UFormGroup label="E-posta" name="email" required>
+      <UInput 
+        v-model="state.email" 
+        type="email" 
+        placeholder="you@example.com" 
+        icon="i-heroicons-envelope"
+      />
+    </UFormGroup>
+
+    <!-- Şifre Alanı (göster/gizle ikonu ile) -->
+    <UFormGroup label="Şifre" name="password" required>
+      <UInput 
+        v-model="state.password" 
+        :type="showPassword ? 'text' : 'password'" 
+        placeholder="••••••••"
+        :trailing-icon="showPassword ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
+        @click:trailing-icon="showPassword = !showPassword"
+      />
+    </UFormGroup>
+
+    <!-- Arama Alanı (yükleme durumu ile) -->
+    <UFormGroup label="Ara" name="searchTerm">
+       <UInput 
+         v-model="state.searchTerm" 
+         placeholder="Ürün ara..."
+         icon="i-heroicons-magnifying-glass"
+         :loading="isSearching"
+       />
+    </UFormGroup>
+
+     <!-- Devre Dışı Bırakılmış Alan -->
+    <UFormGroup label="Kullanıcı ID" name="userId">
+      <UInput v-model="state.userId" disabled />
+    </UFormGroup>
+
+    <UButton type="submit">Gönder</UButton>
+  </UForm>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive } from 'vue';
+// ... (state, schema, onSubmit tanımlamaları @form-start.mdc'deki gibi)
+
+const showPassword = ref(false);
+const isSearching = ref(false); 
+
+// Örnek state (gerçek uygulamada daha dinamik olur)
+const state = reactive({
+    name: '',
+    email: '',
+    password: '',
+    searchTerm: '',
+    userId: 'readonly-user-123'
+})
+
+// Örnek şema (gerçek uygulamada @zod-schemas.mdc'den gelir)
+import { z } from 'zod';
+const schema = z.object({
+    name: z.string().min(1), 
+    email: z.string().email(),
+    password: z.string().min(8),
+    searchTerm: z.string().optional(),
+    userId: z.string().optional()
+})
+
+function onSubmit(event: any) {
+    console.log('Submitted:', event.data)
+}
+</script>
+```
+
+## ❌ Yanlış Kullanım
+- `<UInput>`'ı `<UFormGroup>` olmadan kullanmak (etiket ve hata gösterimi eksik kalır).
+- Girdi tipine uygun olmayan `type` kullanmak (örn. e-posta için `type="text"`).
+- `placeholder`'ı etiket yerine kullanmak.
+- Çok satırlı girdi için `<UTextarea>` yerine `<UInput>` kullanmaya çalışmak.
+
+## 🔍 Kontrol Listesi
+- [ ] `<UInput>`, `<UFormGroup>` içinde mi kullanılıyor?
+- [ ] `v-model` ile state'e doğru bağlanmış mı?
+- [ ] Uygun `type` prop'u kullanılmış mı?
+- [ ] `placeholder` metni açıklayıcı mı?
+- [ ] Gerektiğinde `icon`, `trailing-icon`, `loading` gibi görsel prop'lar kullanılmış mı?
+- [ ] `disabled` veya `readonly` durumu doğru uygulanmış mı?
+
+## 📝 Kural İçeriği Yönergeleri
+- `<UInput>`'ın temel amacını ve `<UFormGroup>` ile ilişkisini açıklayın.
+- En sık kullanılan prop'ları (`type`, `placeholder`, `icon`, `disabled` vb.) ve amaçlarını listeleyin.
+- Yaygın kullanım senaryoları (şifre, arama) için örnekler verin.
+- Erişilebilirlik notlarını ekleyin.
+
+## 🔄 Kural Bakımı
+- Nuxt UI güncellemeleriyle gelen yeni `<UInput>` prop'larını veya özelliklerini ekleyin.
+
+## 🧪 Testler
+- Component testleri ile:
+  - [ ] Farklı `type` değerlerinin doğru render edildiğini test edin.
+  - [ ] `v-model` ile state değişikliğinin input değerini güncellediğini test edin.
+  - [ ] Input'a değer girildiğinde state'in güncellendiğini test edin.
+  - [ ] `icon`, `trailing-icon` ve `loading` prop'larının ikonları doğru gösterdiğini test edin.
+  - [ ] `disabled` prop'unun etkileşimi engellediğini test edin.
+  - [ ] Şifre gösterme/gizleme gibi özel etkileşimleri test edin.
+
+## 💡 İpuçları
+- Karmaşık girdiler veya özel formatlama (örn. para birimi, tarih maskesi) için harici kütüphanelerle (`vue-the-mask` gibi) entegre edilmiş özel bir input bileşeni oluşturmayı düşünebilirsiniz.
+- `trailing-icon`'a tıklama olayı eklemek için `@click:trailing-icon` olayını kullanın.

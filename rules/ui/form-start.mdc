@@ -1,0 +1,191 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Form Başlatma Kuralları (Nuxt UI + VeeValidate + Zod)
+
+## 🎯 Kural Tipi Yapılandırması
+
+### Birincil Kural Tipi Seçimi
+- [x] Her zaman: Form davranışının tutarlı olması için
+- [ ] Manuel
+- [ ] Otomatik Eklenmiş: Form componentleri için
+- [ ] Ajan Tarafından İstenen
+
+type: always
+description: Nuxt/Vue UI katmanında Nuxt UI bileşenleri ile bir formun temel yapısını kurma, VeeValidate ve Zod ile doğrulama entegrasyonunu başlatma kurallarını tanımlar. Bu kural, form oluşturmaya başlamak için gerekli adımları içerir ve detaylı gönderim/hata yönetimi için diğer kurallara referans verir.
+globs: components/**/*.vue, pages/**/*.vue
+
+## 📋 Sorumluluklar
+
+### Ön Koşul Kontrolü (AI Tarafından)
+- Bu kuralı uygulamadan önce, AI ilgili `@types-schema-models.mdc` ve `@zod-schemas.mdc` kurallarına göre gerekli tiplerin ve Zod şemalarının tanımlandığını doğrulamalıdır. Eksikse, önce onları oluşturmayı önermelidir.
+
+### Temel Form Yapısı (Nuxt UI)
+- Formları `<UForm>` ile sarmalayın.
+- Alanları `<UFormGroup>` ile sarmalayın (`name` prop'u şema ile eşleşmeli).
+- Nuxt UI girdi bileşenlerini (`<UInput>`, `<USelectMenu>` vb.) kullanın.
+
+### Temel Doğrulama Entegrasyonu
+- İlgili Zod şemasını import edin.
+- `toTypedSchema` ile dönüştürüp `<UForm>` `:schema` prop'una bağlayın.
+- Form state'ini (`reactive` ile) tanımlayın.
+
+### Temel Gönderim Mantığı
+- `<UForm>` `@submit` olayını kullanarak temel gönderim fonksiyonunu tanımlayın.
+- Fonksiyon içinde basit bir `try...catch` ile API çağrısı yapın ve yükleme durumunu yönetin.
+- **Detaylı gönderim desenleri ve hata yönetimi için `@form-submission-patterns.mdc` ve `@form-error-handling.mdc` kurallarına başvurun.**
+
+### Otomatik Hata Gösterimi
+- `<UFormGroup>`'un otomatik hata gösteriminden faydalanın.
+
+## 🧩 Anahtar Bileşenler
+- `<UForm>`: Ana sarmalayıcı.
+- `<UFormGroup>`: Alan sarmalayıcı ve otomatik hata gösterimi.
+- Nuxt UI Inputları: Form elemanları.
+- Zod Şeması (`@zod-schemas.mdc`): Doğrulama kuralları.
+- `toTypedSchema`: Zod -> VeeValidate dönüşümü.
+- `reactive`: Form state'i.
+- `@submit`: Temel gönderim olayı.
+
+## 📦 Bağımlılıklar
+
+### Gerekli Paketler (Projede kurulu sürümler veya @latest)
+- `nuxt`: ^3.x.x
+- `@nuxt/ui`: (Proje sürümü)
+- `vee-validate`: ^4.x.x
+- `@vee-validate/zod`: ^4.x.x
+- `zod`: ^3.x.x
+
+### Gerekli Kurallar
+- @zod-schemas.mdc (Doğrulama şemaları için)
+- @types-schema-models.mdc (Form veri tipleri ve IApiError için)
+- **Opsiyonel/İleri Seviye:**
+    - @form-submission-patterns.mdc (Detaylı gönderim mantığı)
+    - @form-error-handling.mdc (Detaylı hata yönetimi)
+
+## ✅ Doğru Kullanım (Başlangıç Kurulumu)
+```vue
+<template>
+  <UForm
+    :schema="formSchema"
+    :state="state"
+    class="space-y-4"
+    @submit="onSubmit"
+    ref="nuxtUiForm"
+  >
+    <UFormGroup label="E-posta" name="email" required>
+      <UInput v-model="state.email" />
+      <!-- Hata otomatik gösterilir -->
+    </UFormGroup>
+
+    <UFormGroup label="Şifre" name="password" required>
+      <UInput v-model="state.password" type="password" />
+    </UFormGroup>
+
+    <UButton type="submit" :loading="loading">
+      Giriş Yap
+    </UButton>
+
+    <!-- Temel API Hata Gösterimi -->
+    <UAlert
+      v-if="formError"
+      color="red"
+      variant="soft"
+      :title="formError"
+      class="mt-4"
+    />
+
+  </UForm>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive } from 'vue';
+import { z } from 'zod';
+import { toTypedSchema } from '@vee-validate/zod';
+import type { FormSubmitEvent, Form } from '#ui/types';
+
+// 1. Zod Şeması (Örnek - @zod-schemas.mdc'den gelmeli)
+const LoginSchema = z.object({
+  email: z.string().email("Geçersiz e-posta"),
+  password: z.string().min(1, "Şifre gerekli"),
+});
+type LoginFormData = z.output<typeof LoginSchema>;
+
+// 2. Şemayı Dönüştür
+const formSchema = toTypedSchema(LoginSchema);
+
+// 3. Form State
+const state = reactive<Partial<LoginFormData>>({
+  email: undefined,
+  password: undefined,
+});
+
+// 4. Yükleme ve Temel Hata State
+const loading = ref(false);
+const formError = ref<string | null>(null); // Basit string hata mesajı
+
+// 5. Form Referansı (Opsiyonel - clear vb. için)
+const nuxtUiForm = ref<Form<LoginFormData> | null>(null);
+
+// 6. Temel Gönderim Fonksiyonu
+async function onSubmit(event: FormSubmitEvent<LoginFormData>) {
+  loading.value = true;
+  formError.value = null;
+  console.log('Giriş Denemesi:', event.data);
+
+  try {
+    // API çağrısı
+    await $fetch('/api/login', { method: 'POST', body: event.data });
+    alert('Giriş başarılı!');
+    // Başarılı yönlendirme veya state güncelleme burada yapılabilir
+    // Detaylı senaryolar için @form-submission-patterns.mdc'ye bakınız.
+
+  } catch (err: any) {
+    console.error("Giriş Hatası:", err);
+    // Temel hata mesajını ayarla
+    formError.value = err.data?.message || 'Giriş işlemi başarısız oldu.';
+    // Detaylı hata yönetimi (alanlara setErrors vb.) için
+    // @form-error-handling.mdc kuralına bakınız.
+
+  } finally {
+    loading.value = false;
+  }
+}
+</script>
+```
+
+## ❌ Yanlış Kullanım
+- `<UForm>`, `<UFormGroup>` kullanmamak.
+- Merkezi Zod şeması yerine manuel doğrulama yapmak.
+- `:schema` prop'unu kullanmadan doğrulama yapmaya çalışmak.
+
+## 🔍 Kontrol Listesi
+- [ ] Ön koşul tipler/şemalar kontrol edildi mi (AI)?
+- [ ] `<UForm>` kullanılıyor mu?
+- [ ] Alanlar `<UFormGroup>` ile sarmalanmış mı?
+- [ ] Zod şeması import edilip `toTypedSchema` ile dönüştürülmüş mü?
+- [ ] `:schema` prop'u `<UForm>`'a bağlanmış mı?
+- [ ] Form state'i (`reactive`) tanımlanmış mı?
+- [ ] Temel `@submit` fonksiyonu tanımlanmış mı?
+
+## 📝 Kural İçeriği Yönergeleri
+- Form oluşturmanın ilk adımlarını (UForm, UFormGroup, state, schema bağlama) açıklayın.
+- Ön koşul kontrolünün önemini belirtin.
+- Temel bir gönderim fonksiyonu örneği verin.
+- Detaylı gönderim ve hata yönetimi için diğer kural dosyalarına (`@form-submission-patterns.mdc`, `@form-error-handling.mdc`) açıkça referans verin.
+
+## 🔄 Kural Bakımı
+- İlgili kütüphanelerin (Nuxt UI, VeeValidate, Zod) güncellemelerini takip edin.
+
+## 🧪 Testler
+- Component testleri ile:
+  - [ ] Formun doğru şekilde render edildiğini test edin.
+  - [ ] Geçersiz veri ile `@submit` olayının tetiklenmediğini test edin.
+  - [ ] Geçerli veri ile `@submit` olayının tetiklendiğini ve `event.data`'nın doğru olduğunu test edin.
+  - [ ] Temel API hata durumunda `formError` state'inin güncellendiğini test edin.
+
+## 💡 İpuçları
+- Bu kural, form oluşturmanın temelini atar. Gerçek dünya uygulamaları genellikle daha karmaşık gönderim mantığı (`@form-submission-patterns.mdc`) ve hata yönetimi (`@form-error-handling.mdc`) gerektirir.
+- Spesifik Nuxt UI form elemanlarının (`<UInput>`, `<USelectMenu>` vb.) detaylı kullanımı için ilgili eleman kural dosyalarına bakın (örn. `@ui-input.mdc`).

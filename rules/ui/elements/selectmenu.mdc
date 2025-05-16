@@ -1,0 +1,346 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# UI Element: Select Menu Kuralları (`<USelectMenu>`)
+
+## 🎯 Kural Tipi Yapılandırması
+
+### Birincil Kural Tipi Seçimi
+- [ ] Her zaman
+- [x] Manuel: Açılır menüden seçim yapılması gerektiğinde başvurulur
+- [ ] Otomatik Eklenmiş
+- [ ] Ajan Tarafından İstenen
+
+type: manual
+description: Nuxt UI `<USelectMenu>` bileşeninin doğru ve tutarlı kullanımı için standartları tanımlar. Arama, çoklu seçim ve nesne seçenekleri gibi özellikleri kapsar.
+globs: components/**/*.vue, pages/**/*.vue
+
+## 📋 Sorumluluklar
+
+### Temel Kullanım
+- Kullanıcının bir listeden bir veya birden fazla seçeneği seçmesini sağlamak için `<USelectMenu>` kullanın.
+- Her zaman bir `<UFormGroup>` içine yerleştirin (`@form-start.mdc` kuralına bakın) etiket, yardım metni ve hata gösterimi için.
+- `v-model` direktifi ile form state'indeki ilgili alana bağlayın.
+
+### Prop Kullanımı
+- **`items`**: Seçenek listesini içeren dizi. String dizisi, obje dizisi veya gruplandırılmış dizi olabilir.
+- **`placeholder`**: Hiçbir seçenek seçili değilken görünecek metin.
+- **`searchable`**: Seçenekler içinde arama yapma özelliğini aktif eder (`true`/`false`). Büyük listeler için önerilir.
+    - **`search-input`**: Arama alanını özelleştirmek için `<UInput>` prop'larını içeren obje (`placeholder`, `icon` vb.).
+- **`multiple`**: Birden fazla seçenek seçimine izin verir (`true`/`false`). `v-model` bir diziye bağlanmalıdır.
+- **`value-attribute`**: Eğer `items` bir obje dizisiyse, `v-model`'e hangi özelliğin değer olarak atanacağını belirtir (örn. `id`, `value`). Belirtilmezse tüm obje atanır.
+- **`option-attribute`**: Eğer `items` bir obje dizisiyse, seçenek olarak hangi özelliğin gösterileceğini belirtir (örn. `name`, `label`). Varsayılan olarak `label` kullanılır.
+- **`disabled`**: Bileşeni etkileşimlere kapatmak için.
+- **`loading`**: Asenkron olarak seçenek yüklenirken yükleme göstergesi göstermek için.
+- **`loading-icon`**: Yükleme göstergesi ikonunu özelleştirmek için.
+- **`size`**: Bileşenin boyutunu ayarlayın (`xs`, `sm`, `md`, `lg`, `xl`).
+- **`color`**: Bileşenin rengini ayarlayın.
+- **`variant`**: Bileşenin stilini değiştirin (`outline`, `none`).
+- **`icon`**: Sol tarafa ikon eklemek için.
+- **`trailing-icon`**: Sağ taraftaki varsayılan açılır ok ikonunu değiştirmek için.
+- **`selected-icon`**: Seçili öğenin yanında gösterilecek ikonu değiştirmek için (varsayılan: check ikonu).
+- **`ui`**: Bileşenin stilini özelleştirmek için.
+
+### Erişilebilirlik
+- `<UFormGroup>` etiketi sağlar.
+- Arama özelliği klavye ile gezinmeyi destekler.
+- `placeholder` bilgilendirici olmalıdır.
+
+### Veri Tipleri
+- **String Dizisi:** `items` = `['Aktif', 'Pasif']`, `v-model` = `'Aktif'`
+- **Obje Dizisi:**
+    - `items` = `[{ id: 1, name: 'Admin' }, { id: 2, name: 'Editor' }]`
+    - `v-model` = `1` (eğer `value-attribute="id"` ise)
+    - `v-model` = `{ id: 1, name: 'Admin' }` (eğer `value-attribute` belirtilmemişse)
+- **Çoklu Seçim:** `v-model` her zaman bir dizi olmalıdır (`[1, 2]` veya `[{ id: 1, ... }, { id: 2, ... }]`).
+
+## 🧩 Anahtar Bileşenler
+- `<USelectMenu>`: Ana seçim bileşeni.
+- `<UFormGroup>`: Sarmalayıcı bileşen.
+
+## 📦 Bağımlılıklar
+
+### Gerekli Paketler
+- `@nuxt/ui`
+
+### Gerekli Kurallar
+- @form-start.mdc (Formun genel yapısı ve `<UFormGroup>` kullanımı için)
+
+## ✅ Doğru Kullanım
+
+```vue
+<template>
+  <UForm :state="state" :schema="schema" @submit="onSubmit" class="space-y-4">
+    
+    <!-- Temel Kullanım (String Dizisi) -->
+    <UFormGroup label="Durum" name="status">
+      <USelectMenu 
+        v-model="state.status" 
+        :items="statusOptions" 
+        placeholder="Durum Seçin..."
+      />
+    </UFormGroup>
+
+    <!-- Obje Dizisi ve Arama -->
+    <UFormGroup label="Kullanıcı" name="userId">
+      <USelectMenu 
+        v-model="state.userId" 
+        :items="userOptions"
+        placeholder="Kullanıcı Ara..."
+        value-attribute="id" <!-- v-model'e sadece id atasın -->
+        option-attribute="name" <!-- Gösterilecek özellik 'name' olsun -->
+        searchable
+        :search-input="{ placeholder: 'İsme göre ara...' }"
+      />
+    </UFormGroup>
+
+    <!-- Çoklu Seçim (Basit) -->
+    <UFormGroup label="Basit Etiketler" name="simpleTags">
+      <USelectMenu 
+        v-model="state.simpleTags" 
+        :items="tagOptions"
+        placeholder="Etiket Seçin..."
+        multiple
+      />
+    </UFormGroup>
+
+    <UButton type="submit">Gönder</UButton>
+  </UForm>
+</template>
+
+<script setup lang="ts">
+import { reactive } from 'vue';
+// ... (schema, onSubmit tanımlamaları)
+
+// Örnek Seçenekler
+const statusOptions = ['Aktif', 'Pasif', 'Beklemede'];
+
+const userOptions = [
+  { id: '1', name: 'Ali Veli', email: 'ali@example.com' },
+  { id: '2', name: 'Ayşe Kaya', email: 'ayse@example.com' },
+  { id: '3', name: 'Mehmet Yılmaz', email: 'mehmet@example.com' },
+];
+
+const tagOptions = ['Nuxt', 'Vue', 'UI', 'Frontend', 'Backend'];
+
+// Örnek state
+const state = reactive({
+    status: undefined,
+    userId: undefined,
+    simpleTags: [], // Çoklu seçim için boş dizi
+    tags: [] // Async örnek için
+})
+
+// Örnek şema
+import { z } from 'zod';
+const schema = z.object({
+    status: z.string().optional(),
+    userId: z.string().optional(), // value-attribute="id" olduğu için string
+    simpleTags: z.array(z.string()).optional(), // multiple olduğu için array
+    tags: z.array(z.string()).optional() // Async örnek için
+})
+
+function onSubmit(event: any) {
+    console.log('Submitted:', event.data)
+}
+</script>
+```
+
+### İleri Düzey Örnek: Asenkron Arama, Çoklu Seçim ve Badge Gösterimi
+
+Bu örnek, etiketleri API'den asenkron olarak nasıl getireceğinizi, birden fazla etiket seçimine nasıl izin vereceğinizi ve seçilen etiketleri `<USelectMenu>` altında `<UBadge>` bileşenleri ile nasıl göstereceğinizi birleştirir.
+
+```vue
+<template>
+  <UForm :state="state" :schema="schema" @submit="onSubmitAdvanced" class="space-y-4">
+
+    <UFormGroup label="Gelişmiş Etiketler" name="tags">
+      <USelectMenu
+        v-model="state.tags" 
+        :items="filteredTagOptions" <!-- Filtrelenmiş/Yüklenmiş etiketler -->
+        multiple
+        placeholder="Etiket Ara veya Seç..."
+        searchable
+        :search-attributes="['name']" <!-- Obje dizisinde aranacak alan -->
+        option-attribute="name" <!-- Gösterilecek alan -->
+        value-attribute="id" <!-- v-model'e id'yi ata -->
+        :loading="isLoading"
+        @search="handleSearch" <!-- Arama yazıldığında tetiklenir -->
+      >
+        <!-- Seçeneklerin nasıl görüneceğini özelleştirme (opsiyonel) -->
+        <template #option="{ option: tag }">
+          <span>{{ tag.name }}</span>
+        </template>
+
+         <!-- Arama sonucu bulunamazsa (opsiyonel) -->
+         <template #option-empty="{ query }">
+            <q>{{ query }}</q> bulunamadı.
+         </template>
+      </USelectMenu>
+    </UFormGroup>
+
+    <!-- Seçilen Etiketleri Badge Olarak Gösterme -->
+    <div v-if="state.tags?.length" class="flex flex-wrap gap-2 mt-2">
+       <UBadge
+         v-for="tagId in state.tags"
+         :key="tagId"
+         color="primary"
+         variant="soft"
+         size="lg"
+         class="flex items-center gap-1"
+       >
+         {{ getTagNameById(tagId) }} <!-- Seçili ID'ye karşılık gelen ismi bul -->
+         <UButton
+           icon="i-heroicons-x-mark-20-solid"
+           color="primary"
+           variant="link"
+           size="2xs"
+           :padded="false"
+           @click="removeTag(tagId)"
+         />
+       </UBadge>
+    </div>
+
+    <UButton type="submit">Gelişmiş Gönder</UButton>
+  </UForm>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted } from 'vue';
+import { z } from 'zod';
+import type { FormSubmitEvent } from '#ui/types';
+
+// --- Arayüzler (Normalde @types-schema-models'dan gelir) ---
+interface ITag {
+  id: string;
+  name: string;
+}
+interface IFormData {
+    status?: string;
+    userId?: string;
+    simpleTags?: string[];
+    tags?: string[]; // v-model ID dizisi tutacak
+}
+// --- --- ---
+
+// --- Mock API Fonksiyonu (Gerçek uygulamada $fetch kullanılır) ---
+const allTags: ITag[] = [
+  { id: '1', name: 'Nuxt' }, { id: '2', name: 'Vue' }, { id: '3', name: 'TypeScript' },
+  { id: '4', name: 'TailwindCSS' }, { id: '5', name: 'Nuxt UI' }, { id: '6', name: 'VeeValidate' },
+  { id: '7', name: 'Zod' }, { id: '8', name: 'Pinia' },
+];
+
+async function fetchTags(query?: string): Promise<ITag[]> {
+  console.log("API'ye istek gönderiliyor, arama:", query);
+  await new Promise(resolve => setTimeout(resolve, 500)); // Network gecikmesini simüle et
+  if (!query) {
+    return allTags.slice(0, 10); // Başlangıçta veya boş aramada ilk 10'u göster
+  }
+  const lowerQuery = query.toLowerCase();
+  return allTags.filter(tag => tag.name.toLowerCase().includes(lowerQuery));
+}
+// --- --- ---
+
+// --- State ve Şema --- 
+// Önceki örnekten state ve schema'yı alıyoruz
+const state = reactive<IFormData>({
+    status: undefined,
+    userId: undefined,
+    simpleTags: [],
+    tags: [] // Başlangıçta boş dizi
+});
+
+const schema = z.object({
+    status: z.string().optional(),
+    userId: z.string().optional(),
+    simpleTags: z.array(z.string()).optional(),
+    tags: z.array(z.string()).optional()
+});
+// --- --- --- 
+
+const isLoading = ref(false);
+const fetchedTagOptions = ref<ITag[]>([]); // API'den gelen tüm seçenekler
+
+// Arama veya ilk yükleme fonksiyonu
+async function handleSearch(query?: string) {
+  isLoading.value = true;
+  // Mevcut seçili etiketlerin objelerini koruyalım ki isimleri gösterebilelim
+  const currentlySelectedFullTags = allTags.filter(tag => state.tags?.includes(tag.id));
+  const searchResults = await fetchTags(query);
+  // API'den dönen sonuçlarla mevcut seçilileri birleştir (duplicate olmadan)
+  const combinedOptions = [...currentlySelectedFullTags];
+  searchResults.forEach(result => {
+      if (!combinedOptions.some(existing => existing.id === result.id)) {
+          combinedOptions.push(result);
+      }
+  });
+  fetchedTagOptions.value = combinedOptions;
+  isLoading.value = false;
+}
+
+// Component yüklendiğinde başlangıç etiketlerini getir
+onMounted(async () => {
+    await handleSearch();
+});
+
+// Badge'de ismi göstermek için helper
+function getTagNameById(id: string): string {
+    const tag = fetchedTagOptions.value.find(t => t.id === id) ?? allTags.find(t => t.id === id); // Önce fetch edilenlerde ara
+    return tag?.name ?? id; 
+}
+
+// Badge'den etiket kaldırma fonksiyonu
+function removeTag(tagIdToRemove: string) {
+    state.tags = state.tags?.filter(id => id !== tagIdToRemove);
+}
+
+function onSubmitAdvanced(event: FormSubmitEvent<any>) {
+    console.log('Submitted Advanced Tags (IDs):', event.data.tags);
+}
+
+// Önceki onSubmit fonksiyonu da burada olabilir
+function onSubmit(event: any) {
+    console.log('Submitted:', event.data)
+}
+
+</script>
+```
+
+## ❌ Yanlış Kullanım
+- `<USelectMenu>`'yü `<UFormGroup>` olmadan kullanmak.
+- `multiple` prop'u varken `v-model`'i dizi olmayan bir değere bağlamak.
+- Obje dizisi kullanırken `value-attribute` veya `option-attribute` prop'larını ihtiyaca göre ayarlamamak (istenmeyen değerlerin veya gösterimlerin oluşmasına neden olabilir).
+- Çok fazla seçenek varken `searchable` prop'unu kullanmamak.
+
+## 🔍 Kontrol Listesi
+- [ ] `<USelectMenu>`, `<UFormGroup>` içinde mi kullanılıyor?
+- [ ] `v-model` ile state'e doğru bağlanmış mı?
+- [ ] `items` prop'u doğru formatta sağlanmış mı?
+- [ ] `multiple` aktifse `v-model` dizi mi?
+- [ ] Obje dizisi kullanılıyorsa `value-attribute` ve `option-attribute` doğru ayarlanmış mı?
+- [ ] Çok sayıda seçenek varsa `searchable` kullanılıyor mu?
+- [ ] `placeholder` metninin doğru gösterildiğini test edin.
+
+## 📝 Kural İçeriği Yönergeleri
+- Temel kullanımı ve `<UFormGroup>` ile entegrasyonu açıklayın.
+- String ve obje dizileri ile kullanım farklarını vurgulayın (`value-attribute`, `option-attribute`).
+- `searchable` ve `multiple` prop'larının kullanımını örnekleyin.
+- `v-model`'in veri tipinin `multiple` ve `value-attribute`'e göre nasıl değiştiğini belirtin.
+
+## 🔄 Kural Bakımı
+- Nuxt UI güncellemeleriyle gelen yeni `<USelectMenu>` prop'larını veya özelliklerini (örn. async search yetenekleri) ekleyin.
+
+## 🧪 Testler
+- Component testleri ile:
+  - [ ] Seçeneklerin doğru listelendiğini test edin.
+  - [ ] Bir seçenek seçildiğinde `v-model`'in doğru güncellendiğini test edin (string, obje veya id durumları için ayrı ayrı).
+  - [ ] `multiple` modda birden fazla seçim yapıldığında `v-model` dizisinin doğru güncellendiğini test edin.
+  - [ ] `searchable` aktifken arama yapıldığında listenin filtrelendiğini test edin.
+  - [ ] `placeholder` metninin doğru gösterildiğini test edin.
+  - [ ] `disabled` prop'unun etkileşimi engellediğini test edin.
+
+## 💡 İpuçları
+- Çok fazla seçeneği (örn. >100) API'den asenkron olarak yüklemek için `searchable` prop'u ile birlikte `async function` kullanmayı ve `loading` state'ini yönetmeyi düşünün. Bu durumda `items` dinamik olarak güncellenir.
+- Seçeneklerin görünümünü tamamen özelleştirmek için `#option`, `#option-empty`, `#option-create` gibi slotları kullanabilirsiniz.

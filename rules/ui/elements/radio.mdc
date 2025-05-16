@@ -1,0 +1,82 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# @rule-template.mdc
+
+# Kural: `<URadio>` ve `<URadioGroup>` Kullanımı
+
+**Dosya:** `rules/ui/elements/radio.mdc`
+
+**Açıklama:** Nuxt UI `<URadio>` ve `<URadioGroup>` bileşenlerinin proje genelinde tutarlı kullanımını tanımlar.
+
+## 🎯 Amaç
+
+Bir grup seçenek arasından yalnızca bir tanesinin seçilebildiği durumlar için standart bir yapı sunmak.
+
+## ⚙️ Yapılandırma ve Kullanım
+
+`<URadioGroup>`, bir dizi seçenek (`items`) alır ve seçilen değeri `v-model` ile yönetir. Genellikle `items` dizisindeki objeler `value` ve `label` anahtarlarına sahip olur.
+
+Tek başına `<URadio>` kullanımı nadirdir ve genellikle `<URadioGroup>` tercih edilir.
+
+## ✅ Doğru Kullanım (`<URadioGroup>`)
+
+```vue
+<template>
+  <UForm :state="state" :schema="schema" @submit="onSubmit" class="space-y-4">
+    <UFormGroup label="Teslimat Yöntemi" name="deliveryMethod">
+      <URadioGroup 
+        v-model="state.deliveryMethod"
+        :items="deliveryOptions"
+        legend="Lütfen bir teslimat yöntemi seçin"
+        help="Kargo seçeneği ek ücrete tabidir."
+      />
+    </UFormGroup>
+
+    <UButton type="submit">Gönder</UButton>
+  </UForm>
+</template>
+
+<script setup lang="ts">
+import { reactive } from 'vue';
+import { z } from 'zod';
+import type { FormSubmitEvent } from '#ui/types';
+
+// Seçenekler (genellikle sabit veya API'den gelir)
+const deliveryOptions = [
+  { value: 'standard', label: 'Standart Kargo (3-5 gün)' },
+  { value: 'express', label: 'Hızlı Kargo (1-2 gün)' },
+  { value: 'pickup', label: 'Mağazadan Teslim Al' }
+];
+
+// Örnek state
+const state = reactive({
+  deliveryMethod: 'standard' // Başlangıç değeri
+});
+
+// Örnek şema
+const schema = z.object({
+  deliveryMethod: z.string().refine(value => deliveryOptions.some(opt => opt.value === value), {
+      message: 'Geçerli bir teslimat yöntemi seçilmelidir.'
+  })
+});
+
+function onSubmit(event: FormSubmitEvent<z.output<typeof schema>>) {
+  console.log('Form gönderildi:', event.data);
+}
+</script>
+```
+
+## ❌ Kaçınılması Gerekenler
+
+*   Çoklu seçim gerektiren durumlar için `<URadioGroup>` kullanmak. Bu durumlar için `<UCheckbox>` grubu veya çoklu seçimli `<USelectMenu>` daha uygundur.
+*   Seçenekleri (`items`) `value` ve `label` dışında karmaşık yapılarla tanımlamak (zorunlu olmadıkça).
+*   `<URadio>` bileşenlerini manuel olarak gruplamaya çalışmak yerine `<URadioGroup>` kullanmak.
+
+## 📚 Başvurular
+
+*   [Nuxt UI URadioGroup Dokümantasyonu](https://ui.nuxt.com/forms/radio-group)
+*   [Nuxt UI URadio Dokümantasyonu](https://ui.nuxt.com/forms/radio)
+*   [Nuxt UI UFormGroup Dokümantasyonu](https://ui.nuxt.com/forms/form-group)

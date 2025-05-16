@@ -1,0 +1,82 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# @rule-template.mdc
+
+# Kural: `<UCheckbox>` Kullanımı
+
+**Dosya:** `rules/ui/elements/checkbox.mdc`
+
+**Açıklama:** Nuxt UI `<UCheckbox>` bileşeninin proje genelinde tutarlı kullanımını tanımlar.
+
+## 🎯 Amaç
+
+Tekli onay kutularının standart bir şekilde oluşturulmasını ve yönetilmesini sağlamak.
+
+## ⚙️ Yapılandırma ve Kullanım
+
+`<UCheckbox>`, genellikle bir boolean değeri `v-model` ile bağlamak için kullanılır. `label` prop'u ile yanında açıklama metni gösterilir.
+
+## ✅ Doğru Kullanım
+
+```vue
+<template>
+  <UForm :state="state" :schema="schema" @submit="onSubmit" class="space-y-4">
+    <UFormGroup label="Seçenekler" name="agreed">
+      <UCheckbox 
+        v-model="state.agreed"
+        name="agreed"
+        label="Kullanım koşullarını kabul ediyorum."
+        help="Bu seçeneği işaretlemek zorunludur."
+      />
+    </UFormGroup>
+    
+    <UFormGroup label="Bildirimler" name="notifications">
+        <UCheckbox
+          v-model="state.notifications"
+          name="notifications"
+          label="E-posta ile bildirim al"
+          :disabled="!state.agreed" <!-- Başka bir state'e bağlı disabled -->
+        />
+    </UFormGroup>
+
+    <UButton type="submit">Gönder</UButton>
+  </UForm>
+</template>
+
+<script setup lang="ts">
+import { reactive } from 'vue';
+import { z } from 'zod';
+import type { FormSubmitEvent } from '#ui/types';
+
+// Örnek state
+const state = reactive({
+  agreed: false,
+  notifications: true
+});
+
+// Örnek şema
+const schema = z.object({
+  agreed: z.boolean().refine(value => value === true, {
+      message: 'Kullanım koşulları kabul edilmelidir.',
+  }),
+  notifications: z.boolean().optional()
+});
+
+function onSubmit(event: FormSubmitEvent<z.output<typeof schema>>) {
+  console.log('Form gönderildi:', event.data);
+}
+</script>
+```
+
+## ❌ Kaçınılması Gerekenler
+
+*   Çoklu seçim gerektiren durumlar için `<UCheckbox>` yerine, seçenekleri gruplamak için özel bir yapı veya belki de çoklu seçimli `<USelectMenu>` kullanmayı düşünün. `<URadioGroup>` gibi bileşenler tekil seçim için daha uygundur.
+*   `v-model` olmadan değeri yönetmeye çalışmak (karmaşıklığı artırır).
+
+## 📚 Başvurular
+
+*   [Nuxt UI UCheckbox Dokümantasyonu](https://ui.nuxt.com/forms/checkbox)
+*   [Nuxt UI UFormGroup Dokümantasyonu](https://ui.nuxt.com/forms/form-group)

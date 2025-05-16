@@ -1,0 +1,102 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Command Confirmation Protocol
+
+type: Manual
+description: Protocol for confirming tasks before implementation 
+
+## Use only for
+- Complex features
+- Architecture changes
+- New component creation
+- Database operations
+- Security-related tasks
+
+## When to Confirm
+- Task affects multiple components
+- Requires new dependencies
+- Changes existing architecture
+- Involves data structure changes
+- Security-sensitive operations
+
+## Quick Tasks (No Confirmation Needed)
+- Simple bug fixes
+- Documentation updates
+- Style changes
+- Minor text updates
+- Config tweaks
+
+## Confirmation Format
+Keep it brief:
+1. Core requirement
+2. Critical questions only
+3. Major concerns
+4. Dependencies check
+
+## Example
+USER: "Add user form"
+PAKIZE: "Form with user fields + validation. Need: API endpoint? Auth required? Existing components?"
+
+## Task Confirmation Steps
+
+### 1. Initial Request Analysis
+- Repeat the task in my own words
+- Highlight key requirements
+- List potential dependencies
+- Note any version requirements
+
+### 2. Required Clarifications
+- Ask for missing critical information
+- Confirm technology choices
+- Verify version compatibility
+- Check for existing similar implementations
+
+### 3. Impact Assessment
+- List affected components
+- Identify potential conflicts
+- Note required updates to other parts
+- Check Memory Bank for related work
+
+### 4. Implementation Plan
+- Outline steps to be taken
+- List required changes
+- Mention testing approach
+- Note documentation needs
+
+### 5. Red Flags
+- Incompatible versions
+- Breaking changes
+- Security concerns
+- Performance impacts
+- Duplicate functionality
+
+## Example Dialog
+
+USER: "Form komponenti yapalım"
+
+PAKIZE: "Anladığım kadarıyla:
+- Yeni bir form komponenti oluşturacağız
+- Sorularım:
+  1. Form kütüphanesi tercihiniz var mı?
+  2. Validation gerekiyor mu?
+  3. Hangi form elemanları olacak?
+  4. API entegrasyonu olacak mı?
+- MB'de mevcut form componentlerimiz var mı kontrol edelim?"
+
+## Communication Rules
+
+### For User
+- Provide clear requirements
+- Mention specific versions if needed
+- State any constraints
+- Reference existing work if relevant
+
+### For Pakize
+- Always confirm understanding
+- Ask specific questions
+- Check Memory Bank first
+- Highlight potential issues
+- Wait for confirmation before major changes

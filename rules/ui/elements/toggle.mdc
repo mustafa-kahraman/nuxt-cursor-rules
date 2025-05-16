@@ -1,0 +1,83 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# @rule-template.mdc
+
+# Kural: `<UToggle>` Kullanımı
+
+**Dosya:** `rules/ui/elements/toggle.mdc`
+
+**Açıklama:** Nuxt UI `<UToggle>` bileşeninin proje genelinde tutarlı kullanımını tanımlar.
+
+## 🎯 Amaç
+
+Bir ayarı veya seçeneği açık/kapalı (true/false) olarak değiştirmek için görsel olarak çekici bir anahtar sağlamak.
+
+## ⚙️ Yapılandırma ve Kullanım
+
+`<UToggle>`, `<UCheckbox>` gibi çalışır ve bir boolean değeri `v-model` ile bağlar. Genellikle ayarlarda veya basit ikili seçeneklerde kullanılır.
+
+## ✅ Doğru Kullanım
+
+```vue
+<template>
+  <UForm :state="state" :schema="schema" @submit="onSubmit" class="space-y-4">
+    <UFormGroup label="Karanlık Mod" name="darkMode" description="Uygulama temasını değiştirir.">
+       <UToggle v-model="state.darkMode" />
+    </UFormGroup>
+
+    <UFormGroup label="Otomatik Kaydetme" name="autoSave" description="Değişiklikleri otomatik olarak kaydet.">
+       <UToggle v-model="state.autoSave" />
+    </UFormGroup>
+    
+    <UFormGroup label="Gelişmiş Özellikler" name="advancedFeatures" description="Beta özellikleri etkinleştir (dikkatli kullanın).">
+       <UToggle 
+         v-model="state.advancedFeatures"
+         on-icon="i-heroicons-check-20-solid"
+         off-icon="i-heroicons-x-mark-20-solid"
+         :disabled="!state.isProUser" <!-- Başka bir state'e bağlı disabled -->
+       />
+    </UFormGroup>
+
+    <UButton type="submit">Ayarları Kaydet</UButton>
+  </UForm>
+</template>
+
+<script setup lang="ts">
+import { reactive } from 'vue';
+import { z } from 'zod';
+import type { FormSubmitEvent } from '#ui/types';
+
+// Örnek state
+const state = reactive({
+  darkMode: false,
+  autoSave: true,
+  advancedFeatures: false,
+  isProUser: true // Örnek: Kullanıcının Pro olup olmadığını belirten state
+});
+
+// Örnek şema
+const schema = z.object({
+  darkMode: z.boolean().optional(),
+  autoSave: z.boolean().optional(),
+  advancedFeatures: z.boolean().optional(),
+  isProUser: z.boolean() // Şemada olmak zorunda değil, sadece örnek için
+});
+
+function onSubmit(event: FormSubmitEvent<z.output<typeof schema>>) {
+  console.log('Ayarlar kaydedildi:', event.data);
+}
+</script>
+```
+
+## ❌ Kaçınılması Gerekenler
+
+*   `true`/`false` dışında değerler bekleyen durumlar için `<UToggle>` kullanmak. Bu tür durumlar için `<USelectMenu>` veya `<URadioGroup>` daha uygun olabilir.
+*   Karmaşık durumları tek bir `<UToggle>` ile yönetmeye çalışmak.
+
+## 📚 Başvurular
+
+*   [Nuxt UI UToggle Dokümantasyonu](https://ui.nuxt.com/forms/toggle)
+*   [Nuxt UI UFormGroup Dokümantasyonu](https://ui.nuxt.com/forms/form-group)

@@ -1,0 +1,207 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Zod Şemaları Kuralları
+
+## 🎯 Kural Tipi Yapılandırması
+
+### Birincil Kural Tipi Seçimi
+- [x] Her zaman: Şemaların tutarlı olması gerektiği için
+- [ ] Manuel
+- [ ] Otomatik Eklenmiş
+- [ ] Ajan Tarafından İstenen
+
+type: always
+description: Uygulama genelinde veri doğrulaması için kullanılacak Zod şemalarını merkezi olarak tanımlar.
+globs: server/validation/**/*.schema.ts, types/schemas/**/*.schema.ts # Proje yapısına göre ayarlanabilir
+
+## 📋 Sorumluluklar
+
+### Şema Tanımlama
+- Her ana veri modeli (örn. User, Product) için ayrı `.schema.ts` dosyaları oluşturun.
+- Temel Zod tiplerini (`z.string()`, `z.number()`, `z.boolean()`, `z.date()`, `z.enum()`, `z.object()`, `z.array()`) kullanın.
+- `@types-schema-models.mdc` içindeki TypeScript arayüzleri/tipleri ile tutarlı şemalar oluşturun.
+- Özellikle `z.infer<typeof Schema>` kullanarak tipleri Zod şemalarından türetmeyi düşünün (@types-schema-models.mdc içinde belirtildiği gibi).
+
+### Doğrulama Kuralları
+- Zincirleme metotlarla (`.min()`, `.max()`, `.email()`, `.url()`, `.optional()`, `.nullable()`, `.default()`) doğrulama kuralları ekleyin.
+- Özel hata mesajları tanımlayın (örn. `z.string().min(1, { message: "Bu alan zorunludur" })`).
+- Karmaşık veya koşullu doğrulama için `.refine()` veya `.superRefine()` kullanın.
+- Şemaları `.extend()` ile genişletin veya `.pick()`, `.omit()` ile belirli alanları seçin/çıkarın (örn. Create vs Update şemaları).
+- Şifre gibi alanlar için `.transform()` kullanarak otomatik hashleme gibi işlemler eklemeyi düşünün (dikkatli kullanılmalı).
+
+### Tekrar Kullanım
+- Ortak kullanılan şema parçalarını (örn. pagination, address) ayrı şemalar olarak tanımlayıp diğer şemaların içinde kullanın.
+- Temel bir varlık şeması (`BaseSchema`) oluşturup diğerlerini bundan türetin.
+
+## 🧩 Anahtar Bileşenler
+- Temel Şemalar: Ana veri modelleri için temel doğrulama kuralları.
+- Türetilmiş Şemalar: Oluşturma (Create), Güncelleme (Update) gibi özel durumlar için `.pick()`, `.omit()`, `.extend()` ile oluşturulan şemalar.
+- Ortak Şemalar: Birden fazla yerde kullanılan adres, sayfalama gibi yapılar için şemalar.
+- Refinements (`.refine`): Alanlar arası veya karmaşık özel doğrulamalar.
+
+## 📦 Bağımlılıklar
+
+### Gerekli Paketler
+- `zod`: ^3.x.x (veya projenin kullandığı sürüm)
+
+### Gerekli Kurallar
+- @types-schema-models.mdc (TypeScript tipleri/arayüzleri için referans)
+
+## ✅ Doğru Kullanım
+```typescript
+// types/schemas/base.schema.ts
+import { z } from 'zod';
+
+export const ObjectIdSchema = z.string().regex(/^[0-9a-fA-F]{24}$/, "Geçersiz ID formatı");
+
+export const BaseSchema = z.object({
+  _id: ObjectIdSchema.optional(), // Veya veritabanı modeline göre
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
+});
+
+// types/schemas/user.schema.ts veya server/validation/user.schema.ts
+import { z } from 'zod';
+import { BaseSchema } from './base.schema';
+import { UserRole } from '@/types/shared.types'; // @types-schema-models.mdc'den
+
+// Temel Kullanıcı Şeması (Veritabanı veya tam model)
+export const UserSchema = BaseSchema.extend({
+  name: z.string().min(1, "İsim gereklidir").trim(),
+  email: z.string().email("Geçersiz e-posta").toLowerCase().trim(),
+  password: z.string().min(8, "Şifre en az 8 karakter olmalı"),
+  role: z.nativeEnum(UserRole).default(UserRole.Viewer),
+  isActive: z.boolean().optional().default(true),
+});
+
+// API'de Kullanıcı Oluşturma Şeması
+export const UserCreateAPISchema = UserSchema.omit({ 
+  _id: true, 
+  createdAt: true, 
+  updatedAt: true, 
+  isActive: true // Genellikle oluşturmada default olur
+});
+
+// API'de Kullanıcı Güncelleme Şeması (Tüm alanlar isteğe bağlı)
+export const UserUpdateAPISchema = UserCreateAPISchema.partial();
+
+// Şifre Doğrulama ile Refine Örneği
+export const UserRegisterSchema = UserCreateAPISchema.extend({
+    passwordConfirm: z.string().min(8, "Şifre tekrarı en az 8 karakter olmalı")
+}).refine(data => data.password === data.passwordConfirm, {
+    message: "Şifreler eşleşmiyor",
+    path: ["passwordConfirm"], // Hatanın hangi alana ait olduğunu belirtir
+});
+
+// TypeScript Tipi Türetme
+export type IUser = z.infer<typeof UserSchema>;
+export type IUserCreateAPI = z.infer<typeof UserCreateAPISchema>;
+
+// Kullanım (API Endpoint - @api-endpoints.mdc içinde)
+// import { UserCreateAPISchema } from '@/server/validation/user.schema';
+// const body = await readValidatedBody(event, data => UserCreateAPISchema.safeParse(data));
+// if (!body.success) { throw createError({ ... }); }
+// const validatedData = body.data;
+```
+
+## ❌ Yanlış Kullanım
+```typescript
+// ❌ YANLIŞ: Doğrulama mantığını API endpoint'lerine veya component'lere dağıtmak
+// Her yerde ayrı ayrı `if (body.email && !body.email.includes('@'))` kontrolleri yapmak.
+
+// ❌ YANLIŞ: Şemaları tekrar tekrar tanımlamak
+// Hem API create hem de update için aynı alanları kopyala-yapıştır yapmak.
+
+// ❌ YANLIŞ: Aşırı karmaşık tek bir şema kullanmak
+// `.optional()` ve `.default()` ile dolu devasa bir şema yerine create/update için ayrı şemalar daha okunaklıdır.
+
+// ❌ YANLIŞ: Tipleri Zod şemalarından ayrı yönetmek (senkronizasyon sorunu)
+// interface IUser { email: string; } ayrı, UserSchema = z.object({ email: z.string() }) ayrı tanımlanırsa tutarsızlık olabilir. z.infer kullanmak daha iyi.
+```
+
+## 🔍 Kontrol Listesi
+
+### Kod Kalitesi
+- [ ] Şemalar mantıksal olarak ayrı dosyalarda mı (`*.schema.ts`)?
+- [ ] Şemalar `@types-schema-models.mdc` ile tutarlı mı veya tipler `z.infer` ile mi türetilmiş?
+- [ ] Tekrar eden şema parçaları ayrı/ortak şemalarla yönetiliyor mu?
+- [ ] Create/Update gibi durumlar için türetilmiş şemalar kullanılıyor mu (`pick`, `omit`, `partial`)?
+- [ ] Özel hata mesajları anlaşılır mı?
+- [ ] `.refine` kullanımı mantıklı ve gerekli mi?
+
+### Teknik Gereksinimler
+- [ ] Şemalar uygulamanın ihtiyaç duyduğu tüm doğrulamaları kapsıyor mu?
+- [ ] Performansı etkileyecek aşırı karmaşık `refine`'lardan kaçınılmış mı?
+
+## 📝 Kural İçeriği Yönergeleri
+- Temel Zod kullanımı ve yaygın metotlarla başlayın.
+- `@types-schema-models.mdc` ile nasıl entegre olunacağını gösterin (`z.infer` vurgusu).
+- Create/Update/Partial şemaların nasıl oluşturulacağını örnekleyin (`pick`, `omit`, `partial`).
+- `.refine` ile özel doğrulama örnekleri verin.
+- Ortak şemaların tekrar kullanımı prensibini açıklayın.
+
+## 🔄 Kural Bakımı
+- Yeni Zod sürümleri çıktıkça veya yeni doğrulama desenleri popülerleştikçe güncelleyin.
+- Projedeki veri modelleri değiştikçe ilgili şemaları güncelleyin.
+
+## 🧪 Testler
+- [ ] Her şema için birim testleri yazın.
+- [ ] Geçerli ve geçersiz verilerle tüm doğrulama kurallarını (`min`, `max`, `email`, `refine` vb.) test edin.
+- [ ] Özel hata mesajlarının doğru döndüğünü test edin.
+- [ ] Türetilmiş şemaların (`pick`, `omit`, `partial`) beklendiği gibi çalıştığını test edin.
+
+## 💡 İpuçları
+- Şemaları olabildiğince basit tutun, karmaşıklığı `.refine` veya türetilmiş şemalarla yönetin.
+- Formlarla entegrasyon için (bkz: `@form-validation.mdc`), form kütüphanesinin Zod adaptörünü kullanmayı düşünün.
+- `z.preprocess` ile veriyi doğrulamadan önce dönüştürebilirsiniz (örn. string'i sayıya çevirme), ancak dikkatli kullanın.
+- `z.union` veya `z.discriminatedUnion` ile farklı şekillere sahip olabilecek verileri modelleyin.
+
+## 🔗 İstemci ve Sunucu Tarafı Doğrulama İlişkisi
+
+Zod şemaları hem istemci tarafında (Nuxt UI formları ile `<UForm :schema>`) hem de sunucu tarafında (API endpoint'lerinde `schema.safeParse()`) kullanılmalıdır.
+
+*   **İstemci Tarafı:** `<UForm>`, gönderim *öncesinde* şemayı kullanarak anında geri bildirim sağlar. Bu, gereksiz API çağrılarını önler ve kullanıcı deneyimini iyileştirir.
+*   **Sunucu Tarafı:** Güvenlik ve veri bütünlüğü için **her zaman** sunucu tarafında da doğrulama yapılmalıdır. İstemci tarafı doğrulaması atlatılabilir.
+
+## ⚠️ Sunucu Tarafı Doğrulama Hatalarını İşleme
+
+API endpoint'i, sunucu tarafı Zod doğrulaması başarısız olduğunda, `api-endpoints.mdc` kuralında belirtildiği gibi **standart bir hata yanıtı** dönmelidir:
+
+```json
+// Örnek Hata Yanıtı (statusCode: 400)
+{
+  "code": "VALIDATION_ERROR",
+  "message": "Gönderilen veriler geçersiz.",
+  "details": {
+    "name": ["İsim alanı en az 3 karakter olmalıdır."],
+    "email": ["Geçersiz e-posta adresi."]
+    // ... diğer alan hataları
+  }
+}
+```
+
+Bu yanıtın `details` alanı, Zod'un `error.flatten().fieldErrors` çıktısıyla aynı yapıda olmalıdır (alan adı -> hata mesajı dizisi).
+
+İstemci tarafında (`useFormHandler` veya `displayFormError` içinde), bu `VALIDATION_ERROR` kodu ve `details` alanı kullanılarak `<UForm>`'un `setErrors` metodu çağrılır:
+
+```typescript
+// (useFormHandler onError callback veya watch bloğu içinde)
+
+if (error.code === 'VALIDATION_ERROR' && error.details && typeof error.details === 'object') {
+  const fieldErrors = Object.entries(error.details).map(([key, value]) => ({
+    path: key, // Zod şemasındaki alan adı ile eşleşmeli
+    message: Array.isArray(value) ? value.join(', ') : String(value), // İlk veya birleştirilmiş mesaj
+  }));
+  formRef.value?.setErrors(fieldErrors);
+}
+```
+
+Bu sayede, sunucudan dönen doğrulama hataları da doğrudan formdaki ilgili alanların altında gösterilir.
+
+## 📌 Önemli Notlar
+
+*   **Tek Kaynak:** Mümkünse, aynı veri yapısı için hem istemci hem de sunucu tarafında **aynı Zod şemasını** kullanın. Bu, tutarlılığı sağlar ve tekrarı azaltır. Şemaları `types` veya paylaşılan bir dizinde tanımlayıp her iki taraftan da import edebilirsiniz.
+*   **Hassas Veri:** Sunucudan istemciye hata detaylarını (`details`) gönderirken hassas bilgilerin (örn. veritabanı detayları) sızdırılmadığından emin olun. Sadece doğrulama mesajlarını gönderin.

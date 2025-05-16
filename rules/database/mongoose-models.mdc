@@ -1,0 +1,202 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Mongoose Modelleri Kuralları
+
+## 🎯 Kural Tipi Yapılandırması
+
+### Birincil Kural Tipi Seçimi
+- [ ] Her zaman: Her istekte otomatik olarak uygulanır (örn. kod stili, güvenlik kontrolleri)
+- [x] Manuel: Yalnızca manuel olarak çağrıldığında kullanılır (örn. özel kod oluşturma şablonları)
+- [ ] Otomatik Eklenmiş: Belirli dosyalar/durumlar için otomatik olarak tetiklenir
+- [ ] Ajan Tarafından İstenen: AI tarafından gerektiğinde çağrılır
+
+type: manual
+description: NuxtJS projelerinde Mongoose model ve şemalarının yapısını ve uygulama standartlarını tanımlar.
+globs: server/models/**/*.model.ts
+
+## 📋 Sorumluluklar
+
+### Şema Tanımı
+- Her model için ayrı bir `.model.ts` dosyası oluşturun.
+- Mongoose `Schema` sınıfını kullanarak şemaları tanımlayın.
+- Alan tiplerini (String, Number, Date, Boolean, ObjectId, Array, vb.) doğru şekilde belirtin.
+- Gerekli alanlar için `required: true` kullanın.
+- Varsayılan değerler için `default` özelliğini kullanın.
+- Benzersiz alanlar için `unique: true` kullanın.
+- Enum değerleri için `enum` özelliğini kullanın.
+- Referanslar (ilişkiler) için `type: Schema.Types.ObjectId` ve `ref: 'ReferansModelAdı'` kullanın.
+- Gömülü alt dökümanlar için şema içinde şema tanımlayın.
+
+### Doğrulama (Validation)
+- Şema seviyesinde temel doğrulamaları (minlength, maxlength, match, min, max) kullanın.
+- Özel doğrulama mantığı için `validate` fonksiyonunu kullanın.
+
+### Metotlar ve Statikler
+- Örnek (instance) metotları için `schema.methods` kullanın.
+- Statik model metotları için `schema.statics` kullanın.
+- Sanal (virtual) alanlar için `schema.virtual` kullanın.
+
+### İndeksler
+- Performans için gerekli alanlara indeks (`index: true`) ekleyin.
+- Bileşik indeksler için `schema.index({...})` kullanın.
+
+### TypeScript Entegrasyonu
+- Model arayüzünü (`interface`) tanımlayın.
+- `mongoose.model<IModelArayuzu>('ModelAdı', schema)` kullanarak modeli oluşturun.
+
+## 🧩 Anahtar Bileşenler
+- Şema (`Schema`): Veri yapısını tanımlar.
+- Model (`Model`): Veritabanı ile etkileşim arayüzünü sağlar.
+- Arayüz (`interface`): TypeScript tip güvenliği için modelin yapısını tanımlar.
+- Metotlar (`methods`, `statics`): Modele özgü iş mantığını içerir.
+- Sanallar (`virtuals`): Hesaplanan veya birleştirilmiş alanlar oluşturur.
+
+## 📦 Bağımlılıklar
+
+### Gerekli Paketler
+- `mongoose`: projenin kullandığı sürüm (yada @latest)
+
+### Gerekli Kurallar
+- Belki @types-schema-models.mdc (Genel tipler için)
+
+## ✅ Doğru Kullanım
+```typescript
+// server/models/user.model.ts
+import mongoose, { Schema, Document, Model } from 'mongoose';
+
+// 1. Arayüzü Tanımla (TypeScript için)
+export interface IUser extends Document {
+  name: string;
+  email: string;
+  createdAt: Date;
+  lastLogin?: Date;
+  fullName(): string; // Örnek metot
+}
+
+// 2. Şemayı Oluştur
+const UserSchema: Schema<IUser> = new Schema({
+  name: {
+    type: String,
+    required: [true, 'İsim alanı zorunludur.'],
+    trim: true,
+  },
+  email: {
+    type: String,
+    required: [true, 'E-posta alanı zorunludur.'],
+    unique: true,
+    lowercase: true,
+    trim: true,
+    match: [/\S+@\S+\.\S+/, 'Geçersiz e-posta formatı.'],
+  },
+  lastLogin: {
+    type: Date,
+  },
+}, {
+  timestamps: true // createdAt ve updatedAt alanlarını otomatik ekler
+});
+
+// 3. Sanal Alanlar (İsteğe Bağlı)
+UserSchema.virtual('id').get(function(){
+    return this._id.toHexString();
+});
+
+// JSON'a dönüştürürken sanalları dahil et
+UserSchema.set('toJSON', {
+    virtuals: true
+});
+
+// 4. Örnek Metotları (İsteğe Bağlı)
+UserSchema.methods.fullName = function(): string {
+  return this.name; // Basit örnek, daha karmaşık olabilir
+};
+
+// 5. Statik Metotlar (İsteğe Bağlı)
+UserSchema.statics.findByEmail = function(email: string) {
+  return this.findOne({ email });
+};
+
+// 6. İndeksler (İsteğe Bağlı)
+UserSchema.index({ email: 1 }); // E-posta üzerinde indeks
+
+// 7. Modeli Oluştur ve Dışa Aktar
+// Eğer model zaten tanımlıysa tekrar tanımlamayı önle (HMR için önemli olabilir)
+const UserModel = mongoose.models.User as Model<IUser> || mongoose.model<IUser>('User', UserSchema);
+
+export default UserModel;
+
+// Kullanım Örneği (API endpoint içinde)
+// import UserModel from '@/server/models/user.model';
+// const user = await UserModel.findByEmail('test@example.com');
+// const newUser = new UserModel({ name: 'Test', email: 'test2@example.com' });
+// await newUser.save();
+// console.log(newUser.fullName());
+```
+
+## ❌ Yanlış Kullanım
+```typescript
+// ❌ YANLIŞ: Şema olmadan doğrudan model oluşturma
+// const User = mongoose.model('User', { name: String }); // Şema detayları eksik
+
+// ❌ YANLIŞ: TypeScript arayüzü kullanmamak
+// const UserSchema: Schema = new Schema({...});
+// const UserModel = mongoose.model('User', UserSchema); // Tip güvenliği yok
+
+// ❌ YANLIŞ: İlişkilerde `ref` belirtmemek
+// const PostSchema = new Schema({ author: Schema.Types.ObjectId }); // ref: 'User' eksik
+
+// ❌ YANLIŞ: Gerekli alanlar için `required` kullanmamak
+// const ProductSchema = new Schema({ name: String, price: Number }); // name ve price zorunlu olmalı
+
+// ❌ YANLIŞ: Metotları doğrudan şema tanımına eklemek
+// const UserSchema = new Schema({ name: String, greet: function() {} }); // schema.methods kullanılmalı
+```
+
+## 🔍 Kontrol Listesi
+
+### Kod Kalitesi
+- [ ] Her model ayrı bir dosyada mı (`*.model.ts`)?
+- [ ] TypeScript arayüzü (`interface`) tanımlanmış mı?
+- [ ] Alan tipleri doğru ve açıkça belirtilmiş mi?
+- [ ] Gerekli alanlar (`required`) işaretlenmiş mi?
+- [ ] Benzersiz alanlar (`unique`) işaretlenmiş mi?
+- [ ] İlişkiler için `ref` doğru şekilde kullanılmış mı?
+- [ ] `timestamps` seçeneği kullanılıyor mu (genellikle önerilir)?
+- [ ] Model, tip arayüzü ile birlikte mi oluşturulmuş (`mongoose.model<IArayuz>(...)`)?
+
+### Teknik Gereksinimler
+- [ ] Temel doğrulamalar (uzunluk, format vb.) eklenmiş mi?
+- [ ] Gerekli indeksler tanımlanmış mı?
+- [ ] Gerekliyse örnek/statik metotlar doğru şekilde (`schema.methods`/`schema.statics`) tanımlanmış mı?
+- [ ] Gerekliyse sanal alanlar (`schema.virtual`) kullanılmış mı?
+
+## 📝 Kural İçeriği Yönergeleri
+- TypeScript arayüz tanımı ile başlayın.
+- Detaylı `Schema` tanımını ekleyin (tipler, required, default, unique, enum, ref).
+- Şema seçeneklerini (`timestamps`, `toJSON` vb.) açıklayın.
+- Sanal alanlar, metotlar ve statiklerin nasıl ekleneceğini gösterin.
+- İndekslemenin önemini ve nasıl yapılacağını belirtin.
+- Modelin nasıl oluşturulup dışa aktarılacağını gösterin.
+
+## 🔄 Kural Bakımı
+- Yeni Mongoose sürümleri çıktıkça güncelleyin.
+- Yaygın kullanılan doğrulama veya metot desenlerini ekleyin.
+- Performansla ilgili en iyi uygulamaları (indeksleme vb.) güncel tutun.
+
+## 🧪 Testler
+### Birim Testleri
+- [ ] Model oluşturma ve kaydetme işlemlerini test edin.
+- [ ] Doğrulama kurallarını test edin (gerekli, benzersiz, format vb.).
+- [ ] Örnek metotların doğru çalıştığını test edin.
+- [ ] Statik metotların doğru çalıştığını test edin.
+- [ ] Sanal alanların doğru değerler döndürdüğünü test edin.
+
+## 💡 İpuçları
+- `trim: true` kullanarak string alanların başındaki/sonundaki boşlukları otomatik temizleyin.
+- `lowercase: true` veya `uppercase: true` kullanarak otomatik büyük/küçük harf dönüşümü yapın.
+- Karmaşık doğrulamalar için `validate` fonksiyonunu kullanın.
+- Alt dökümanlar yerine mümkün olduğunca referansları (`ref`) tercih edin (performans ve yönetim kolaylığı için).
+- `lean()` metodu ile sorgu sonuçlarını saf JavaScript objeleri olarak alarak performansı artırabilirsiniz (eğer Mongoose metotlarına/sanallarına ihtiyaç yoksa).
+- Gerekli olmayan alanları sorgulardan çıkarmak için `select: false` kullanın.

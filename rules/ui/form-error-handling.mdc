@@ -1,0 +1,213 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Form Gönderim Hata Yönetimi Kuralları (Nuxt UI)
+
+## 🎯 Kural Tipi Yapılandırması
+
+### Birincil Kural Tipi Seçimi
+- [x] Her zaman: Tutarlı kullanıcı deneyimi için
+- [ ] Manuel
+- [ ] Otomatik Eklenmiş
+- [ ] Ajan Tarafından İstenen
+
+type: always
+description: `<UForm>` ile gönderilen formlarda API'den dönen hataların yakalanması, işlenmesi ve kullanıcıya gösterilmesi için standartları tanımlar.
+globs: components/**/*.vue, pages/**/*.vue
+
+## 📋 Sorumluluklar
+
+### Hata Yakalama ve Normalleştirme
+- Form gönderim fonksiyonundaki (`@submit` olayına bağlı) `try...catch` bloğunda API hatalarını yakalayın.
+- Yakalanan hatayı, `@pinia-store-structure.mdc` kuralında önerilen `normalizeError` helper fonksiyonu (veya benzeri) ile standart bir `IApiError { code, message, details? }` formatına dönüştürün.
+
+### Genel Hata Gösterimi
+- API'den dönen ve belirli bir forma alanına ait olmayan genel hataları (örn. sunucu hatası - 500, yetkilendirme hatası - 401/403) formun uygun bir yerinde, genellikle `<UAlert>` bileşeni ile gösterin.
+- Bu genel hata mesajı için ayrı bir `ref` (örn. `formError = ref<IApiError | null>(null)`) kullanın.
+
+### Alan Bazlı Hata Gösterimi (Sunucu Tarafı Doğrulama)
+- API'nin, belirli alanlara ait doğrulama hatalarını yapılandırılmış bir şekilde (örn. `{ errors: { email: 'Bu e-posta zaten kayıtlı.', name: '...' } }`) döndürdüğü durumlar için `<UForm>` bileşeninin `setErrors` metodunu kullanın.
+- API yanıtındaki hata yapısını `setErrors`'un beklediği `[{ path: string, message: string }]` formatına dönüştürün.
+- `setErrors` çağrısı, ilgili `<UFormGroup>` bileşenlerinin hata mesajlarını otomatik olarak güncellemesini sağlar.
+- `setErrors` kullanmak için `<UForm>` bileşenine bir `ref` (örn. `nuxtUiForm`) atamanız gerekir.
+
+### Farklı Hata Senaryoları
+- **422 (Unprocessable Entity):** Genellikle sunucu tarafı alan doğrulama hatalarıdır. `setErrors` ile yönetin.
+- **400 (Bad Request):** Genel bir istek hatası olabilir veya alan bazlı olabilir. API yanıtına göre `UAlert` veya `setErrors` kullanın.
+- **401/403 (Unauthorized/Forbidden):** Genellikle genel bir hata olarak `UAlert` ile gösterilir veya kullanıcı login sayfasına yönlendirilir.
+- **5xx (Server Error):** Genel bir hata olarak `UAlert` ile gösterilir.
+- **Diğer Hatalar (Network vb.):** Genel bir hata olarak `UAlert` ile gösterilir.
+
+### Kullanıcı Geri Bildirimi (`useToast`)
+- Hata mesajını forma doğrudan yansıtmanın yanı sıra, kritik olmayan veya bilgilendirici hatalar için Nuxt UI'ın `useToast()` composable'ını kullanarak bildirim gösterebilirsiniz.
+- Örneğin, başarılı bir işlem sonrası veya non-blocking bir hata durumunda kullanılabilir.
+
+### Odak Yönetimi (İsteğe Bağlı)
+- Sunucu tarafı alan hatası alındığında, kullanıcı deneyimini iyileştirmek için ilk hatalı alana odaklanmayı düşünebilirsiniz. Bu, `<UForm>` referansı üzerinden ilgili elemana erişerek yapılabilir (daha ileri seviye bir konudur).
+
+## 🧩 Anahtar Bileşenler
+- `try...catch` bloğu: Hata yakalama.
+- `normalizeError`: Hata standardizasyonu.
+- `<UAlert>`: Genel hata gösterimi.
+- `<UForm>` `ref`: `setErrors` metoduna erişim için.
+- `setErrors` Metodu: Alan bazlı sunucu hatalarını `<UFormGroup>`'lara iletmek için.
+- `useToast` (Nuxt UI): Bildirim göstermek için.
+- `IApiError` Arayüzü: Standartlaştırılmış hata nesnesi.
+
+## 📦 Bağımlılıklar
+
+### Gerekli Paketler
+- `@nuxt/ui`
+- (İlgili formun bağımlılıkları: `vee-validate`, `zod` vs.)
+
+### Gerekli Kurallar
+- @form-start.mdc (Bu kural, formun temel kurulumunu varsayar)
+- @types-schema-models.mdc (`IApiError` tanımı için)
+- @pinia-store-structure.mdc (`normalizeError` fonksiyonu referansı için, eğer kullanılıyorsa)
+
+## ✅ Doğru Kullanım
+```vue
+<template>
+  <UForm
+    :schema="formSchema" 
+    :state="state" 
+    class="space-y-4"
+    @submit="onSubmit"
+    ref="nuxtUiForm" <!-- setErrors için ref eklendi -->
+  >
+    <!-- Genel Form Hata Alanı (Formun Üstünde) -->
+    <UAlert
+      v-if="formError"
+      icon="i-heroicons-exclamation-triangle"
+      color="red"
+      variant="soft"
+      :title="formError.message || 'Bir hata oluştu'"
+      :description="formError.details?.field ? `Alan: ${formError.details.field}` : ''" 
+      class="mb-4" <!-- Üstte olduğu için alt boşluk -->
+      closable 
+      @close="formError = null" <!-- Kapatma butonu -->
+    />
+
+    <UFormGroup label="E-posta" name="email" required>
+      <UInput v-model="state.email" />
+      <!-- Hata otomatik gösterilir (hem client hem server/setErrors) -->
+    </UFormGroup>
+
+    <UFormGroup label="Şifre" name="password" required>
+      <UInput v-model="state.password" type="password" />
+    </UFormGroup>
+
+    <UButton type="submit" :loading="loading">
+      Kaydet
+    </UButton>
+
+  </UForm>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive } from 'vue';
+import { z } from 'zod';
+import { toTypedSchema } from '@vee-validate/zod';
+import type { FormSubmitEvent, Form } from '#ui/types';
+import type { IApiError } from '@/types/shared.types'; 
+import { normalizeError } from '@/utils/errorHelper'; 
+const toast = useToast(); // Toast kullanımı için
+
+// --- Şema ve State (@form-start.mdc'den) --- 
+const UserFormSchema = z.object({
+  email: z.string().email("Geçersiz e-posta"),
+  password: z.string().min(8, "Şifre en az 8 karakter olmalı"),
+});
+type UserFormData = z.output<typeof UserFormSchema>;
+const formSchema = toTypedSchema(UserFormSchema);
+const state = reactive<Partial<UserFormData>>({ email: undefined, password: undefined });
+// --- --- --- --- --- 
+
+const loading = ref(false);
+const formError = ref<IApiError | null>(null); // Genel hata için
+const nuxtUiForm = ref<Form<UserFormData> | null>(null);
+
+async function onSubmit(event: FormSubmitEvent<UserFormData>) {
+  loading.value = true;
+  formError.value = null;
+  // Önceki alan hatalarını temizle (yeni gönderim öncesi)
+  nuxtUiForm.value?.clear(); 
+
+  try {
+    await $fetch('/api/register', { method: 'POST', body: event.data });
+    toast.add({ title: 'Kayıt başarılı!', color: 'green' });
+    // Başarılı işlem sonrası...
+
+  } catch (err: unknown) {
+    const normalizedError = normalizeError(err);
+    console.error("Kayıt Hatası:", err); // Orijinal hatayı logla
+
+    // 1. Alan bazlı hataları işle (örn. 422 hatası)
+    //    API'nin { errors: { email: 'Bu e-posta zaten kayıtlı.' } } gibi döndüğünü varsayalım
+    const fieldErrors = normalizedError.details?.errors;
+    if (fieldErrors && typeof fieldErrors === 'object' && nuxtUiForm.value) {
+        const veeErrors = Object.entries(fieldErrors).map(([path, message]) => ({ 
+            path: path, // API'den gelen alan adı
+            message: Array.isArray(message) ? message.join(', ') : String(message) // Mesajın string olduğundan emin ol
+        }));
+        nuxtUiForm.value.setErrors(veeErrors);
+        // Alan hatası varsa genel hata göstermeyebiliriz veya farklı gösterebiliriz
+        formError.value = { code: 'VALIDATION_ERROR', message: 'Lütfen formdaki hataları düzeltin.' };
+        // İlk hatalı alana odaklan (opsiyonel)
+        // if (veeErrors.length > 0) { nuxtUiForm.value?.focus(veeErrors[0].path); }
+    } else {
+        // 2. Genel hatayı göster
+        formError.value = normalizedError;
+        // İsteğe bağlı: Genel hata için toast gösterimi
+        // toast.add({ title: 'Hata!', description: normalizedError.message, color: 'red' });
+    }
+  } finally {
+    loading.value = false;
+  }
+}
+</script>
+```
+
+## ❌ Yanlış Kullanım
+- API'den dönen hataları yakalamamak (`try...catch` eksikliği).
+- Sunucu tarafı alan hatalarını (`setErrors` ile) forma yansıtmamak.
+- Tüm hataları sadece `console.error` ile loglayıp kullanıcıya göstermemek.
+- Farklı hata türleri için tutarsız gösterim yöntemleri kullanmak.
+
+## 🔍 Kontrol Listesi
+- [ ] Form gönderiminde `try...catch` kullanılıyor mu?
+- [ ] Yakalanan hata `normalizeError` ile standartlaştırılıyor mu?
+- [ ] Genel hatalar için `<UAlert>` veya benzeri bir gösterim var mı?
+- [ ] Sunucu tarafı alan hataları için `setErrors` kullanılıyor mu?
+- [ ] `<UForm>` için `ref` tanımlanmış mı (`setErrors` için)?
+- [ ] Hata mesajları kullanıcı için anlaşılır mı?
+- [ ] Gerektiğinde `useToast` ile ek geri bildirim veriliyor mu?
+
+## 📝 Kural İçeriği Yönergeleri
+- API hata yakalama (`try...catch`) ve normalleştirme (`normalizeError`) adımlarını vurgulayın.
+- Genel hataların `<UAlert>` ile nasıl gösterileceğini örnekleyin.
+- Sunucu tarafı alan hatalarının `setErrors` ile `<UFormGroup>`'lara nasıl iletileceğini detaylandırın.
+- Farklı HTTP durum kodlarına göre olası yaklaşımları (alert, setErrors, yönlendirme) açıklayın.
+- `useToast` kullanımını bir seçenek olarak belirtin.
+
+## 🔄 Kural Bakımı
+- Nuxt UI, VeeValidate veya kullanılan HTTP istemcisinin (örn. `ofetch`) hata yapılarındaki değişikliklere göre güncelleyin.
+- Yeni hata yönetimi desenleri veya kütüphaneleri çıktıkça eklemeler yapın.
+
+## 🧪 Testler
+- Component testleri ile:
+  - [ ] Başarılı API yanıtı sonrası hata gösterilmediğini test edin.
+  - [ ] Genel API hatası (örn. 500) durumunda `<UAlert>`'ın doğru mesajla göründüğünü test edin.
+  - [ ] Alan bazlı sunucu hatası (örn. 422) durumunda:
+    - İlgili `<UFormGroup>`'un hata mesajını gösterdiğini test edin (`setErrors` sonrası).
+    - Genel hata alanının (varsa) farklı bir mesaj gösterdiğini veya gizlendiğini test edin.
+  - [ ] Yetki hatası (örn. 401/403) durumunda beklenen davranışın (alert, yönlendirme) gerçekleştiğini test edin.
+  - [ ] `useToast` çağrılarının doğru parametrelerle yapıldığını (spy kullanarak) test edin.
+
+## 💡 İpuçları
+- `normalizeError` fonksiyonunu API'nizin döndürdüğü spesifik hata yapılarına göre özelleştirin.
+- `setErrors` kullanırken API'den dönen alan adlarının (`path`) `<UFormGroup>` `name` prop'ları ile eşleştiğinden emin olun.
+- Kullanıcıya gösterilen hata mesajlarının hem bilgilendirici hem de güvenli olduğundan (örn. hassas bilgi sızdırmadığından) emin olun.
+- Çok adımlı formlar veya karmaşık bağımlılıklar içeren formlar için hata yönetimini daha dikkatli planlayın.

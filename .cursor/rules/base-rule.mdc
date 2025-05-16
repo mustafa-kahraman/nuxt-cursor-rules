@@ -1,0 +1,41 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Base Rules
+
+type: Always
+description: Core rules that should be applied in every interaction
+
+## Memory Bank Updates
+- Update MB after completing any feature
+- Update MB when making significant architectural changes
+- Update MB when adding new dependencies
+- Update MB when creating new documentation
+
+## Code Quality
+- Follow clean code principles
+- Use meaningful variable and function names
+- Add comments only for complex logic
+- Keep functions small and focused
+
+## Documentation
+- Update relevant documentation with code changes
+- Keep README files current
+- Document breaking changes
+
+## Version Control
+- Write clear commit messages
+- Make atomic commits
+- Follow branch naming conventions
+
+## Security
+- Never commit sensitive data
+- Use environment variables for secrets
+- Validate all inputs
+
+## Testing
+- Write tests for new features
+- Update affected tests when modifying code
+- Maintain test coverage

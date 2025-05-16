@@ -1,0 +1,34 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Command Aliases
+
+type: Always
+description: Short commands and their full meanings for efficient communication
+
+## Context7 Commands
+- c7 = use context7
+
+## Memory Bank Commands
+- MB update = Update the memory bank with latest changes
+- MB query = Query the memory bank for specific information
+- MB export = Export memory bank contents
+
+## Repository Commands
+- repo sync = Sync repository with remote
+- repo push = Push changes to remote
+- repo update = Pull latest changes and update dependencies
+
+## Project Commands
+- feat done = Mark current feature as complete and update MB
+- test all = Run all test suites
+- doc update = Update documentation
+
+## Code Review Commands
+- review ready = Mark code as ready for review
+- review fix = Apply review feedback
+
+## Note
+These aliases can be used in conversations with Pakize (CursorAI) for shorter, more efficient communication.

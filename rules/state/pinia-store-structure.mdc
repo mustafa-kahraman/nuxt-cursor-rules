@@ -1,0 +1,299 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Pinia Store Yapısı Kuralları (Setup Stili)
+
+## 🎯 Kural Tipi Yapılandırması
+
+### Birincil Kural Tipi Seçimi
+- [x] Her zaman: State yönetimi tutarlılığı için
+- [ ] Manuel
+- [ ] Otomatik Eklenmiş
+- [ ] Ajan Tarafından İstenen
+
+type: always
+description: Nuxt/Vue projelerinde Pinia state yönetimi için "Setup Store" stilinin kullanımını standartlaştırır.
+globs: stores/**/*.ts, store/**/*.ts # Proje yapısına göre ayarlanabilir
+
+## 📋 Sorumluluklar
+
+### Store Tanımlama
+- Her store için ayrı bir `.ts` dosyası oluşturun (örn. `user.store.ts`).
+- Store tanımlamak için `defineStore` fonksiyonunu kullanın.
+- İlk argüman olarak store için benzersiz bir ID (string) verin (genellikle dosya adıyla aynı veya benzer).
+- İkinci argüman olarak bir setup fonksiyonu (`() => { ... }`) kullanın.
+
+### State Tanımlama
+- Store state'ini temsil eden değişkenleri `ref()` ile tanımlayın.
+- Hata Yönetimi İçin: Asenkron action'ların hatalarını tutmak için standartlaştırılmış bir `error` state'i (`ref<IApiError | null>(null)`) ekleyin.
+- Bu ref'leri setup fonksiyonu içinden return edin.
+
+### Getters Tanımlama
+- Hesaplanan state değerleri için `computed()` kullanın.
+- Bu computed ref'leri setup fonksiyonu içinden return edin.
+
+### Actions Tanımlama
+- State'i değiştirecek mantığı içeren fonksiyonları doğrudan setup fonksiyonu içinde tanımlayın.
+- Asenkron İşlemler ve Hata Yönetimi:
+    - Asenkron işlemleri (API çağrıları vb.) içeren action'ları `async` olarak tanımlayın.
+    - Asenkron kodları `try...catch` bloğu içine alın.
+    - `catch` bloğunda, hatayı `normalizeError` fonksiyonu ile standartlaştırın ve store'daki `error` ref'ini bu normalleştirilmiş hata ile güncelleyin.
+    - Action'ın başarılı olup olmadığını belirtmek için `true`/`false` dönebilirsiniz.
+    - `finally` bloğunu kullanarak yükleme durumu (loading state) gibi durumları temizleyebilirsiniz.
+- Actions içinde diğer actionları çağırabilirsiniz.
+- Actions içinde state ref'lerinin `.value` özelliğini kullanarak state'i değiştirin.
+- Bu fonksiyonları setup fonksiyonu içinden return edin.
+
+### Dışa Aktarma (Return)
+- Setup fonksiyonundan state ref'lerini, computed ref'lerini (getters) ve action fonksiyonlarını içeren bir obje return edin.
+- Dışa aktarılmayan (return edilmeyen) değişkenler veya fonksiyonlar store'un özel (private) üyeleri olarak kalır.
+
+### İsimlendirme
+- Store dosya isimleri genellikle `*.store.ts` veya `*Store.ts` şeklinde olur.
+- `defineStore` ile oluşturulan store değişkeni `use` ön eki ve PascalCase isimlendirme ile tanımlanır (örn. `useUserStore`).
+
+### TypeScript
+- Mümkünse `ref<Type>()` ve `computed<Type>(...)` kullanarak tipleri belirtin.
+- Return edilen objenin tipi otomatik olarak çıkarılır, ancak karmaşık durumlarda açıkça belirtilebilir.
+
+### Store Kullanımı (Component İçinde)
+- Component setup'ında store'u `useMyStore()` şeklinde çağırın.
+- Reaktiviteyi korumak için state ve getter'ları component template'inde kullanırken `storeToRefs(store)` yardımcı fonksiyonunu kullanın.
+- Action'ları doğrudan store objesinden çağırın (`store.increment()`).
+
+## 🧩 Anahtar Bileşenler
+- `defineStore`: Store tanımlama fonksiyonu.
+- `ref`: Reaktif state değişkenleri.
+- `computed`: Hesaplanan state (getters).
+- Fonksiyonlar: State değiştiren mantık (actions).
+- `return { ... }`: Store'un public arayüzünü (state, getters, actions) tanımlar.
+- `storeToRefs`: Component içinde reaktiviteyi korumak için.
+- `error` State (`ref<IApiError | null>`): Store kaynaklı, standartlaştırılmış hataları tutmak için.
+- `normalizeError` (Helper Fonksiyon): Hataları standart `IApiError` formatına dönüştürmek için (önerilen).
+
+## 📦 Bağımlılıklar
+
+### Gerekli Paketler
+- `vue`: ^3.x.x
+- `pinia`: ^2.x.x (veya projenin kullandığı sürüm)
+- `@pinia/nuxt`: (Nuxt projeleri için genellikle otomatik yüklenir)
+
+### Gerekli Kurallar
+- Belki @types-schema-models.mdc (State tipleri için)
+
+## ✅ Doğru Kullanım
+```typescript
+// stores/user.store.ts
+import { ref, computed } from 'vue';
+import { defineStore, acceptHMRUpdate } from 'pinia';
+import type { IUser, IApiError } from '@/types/shared.types'; // Örnek tipler
+import { normalizeError } from '@/utils/errorHelper'; // Paylaşılan helper
+import { $fetch, FetchError } from 'ofetch';
+
+export const useUserStore = defineStore('user', () => {
+  // State
+  const user = ref<IUser | null>(null);
+  const loading = ref(false);
+  const error = ref<IApiError | null>(null); // Standartlaştırılmış hata state'i
+
+  // Getters
+  const isLoggedIn = computed(() => !!user.value);
+  const userName = computed(() => user.value?.name || 'Guest');
+
+  // Actions
+  async function fetchUser(id: string): Promise<boolean> { // Başarı durumunu döndür
+    loading.value = true;
+    error.value = null; // Önceki hatayı temizle
+    try {
+      const fetchedData = await $fetch<IUser>(`/api/users/${id}`);
+      user.value = fetchedData;
+      return true; // Başarılı
+    } catch (err: unknown) { // Hata tipini unknown olarak yakala
+      // Hatayı standart formata dönüştür ve state'e kaydet
+      error.value = normalizeError(err);
+      user.value = null; // Kullanıcı verisini temizle
+      console.error("fetchUser Error:", err); // Orijinal hatayı logla
+      return false; // Başarısız
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  function clearUser() {
+    user.value = null;
+    error.value = null;
+  }
+
+  function $reset() {
+    user.value = null;
+    loading.value = false;
+    error.value = null;
+  }
+
+  // Dışa Aktarılacaklar
+  return {
+    // State
+    user,
+    loading,
+    error, // Standartlaştırılmış hata state'i
+    // Getters
+    isLoggedIn,
+    userName,
+    // Actions
+    fetchUser,
+    clearUser,
+    $reset,
+  };
+});
+
+// HMR Desteği (İsteğe Bağlı ama Önerilen)
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useUserStore, import.meta.hot));
+}
+
+// ----- Component İçinde Kullanım ----- 
+/*
+<script setup lang="ts">
+import { useUserStore } from '@/stores/user.store';
+import { storeToRefs } from 'pinia';
+import { onMounted } from 'vue';
+
+const userStore = useUserStore();
+// Artık error objesinin .message ve .code gibi alanları olacağını biliyoruz
+const { user, loading, error, userName } = storeToRefs(userStore);
+
+async function loadUser() {
+    const success = await userStore.fetchUser('123');
+    if (!success && error.value) {
+        console.error(`[${error.value.code}] ${error.value.message}`);
+    }
+}
+
+onMounted(() => { loadUser(); });
+</script>
+
+<template>
+  <div>
+    <p v-if="loading">Yükleniyor...</p>
+    <!-- Hata mesajını standart objeden göster -->
+    <div v-else-if="error" style="color: red;">Hata: {{ error.message }} (Kod: {{ error.code }})</div>
+    <div v-else-if="user">
+      <p>Hoşgeldin, {{ userName }}</p>
+    </div>
+    <p v-else>Kullanıcı bulunamadı veya yüklenemedi.</p>
+    <button @click="loadUser" :disabled="loading">Tekrar Yükle</button>
+    <button @click="userStore.clearUser">Kullanıcıyı Temizle</button>
+  </div>
+</template>
+*/
+```
+
+## ❌ Yanlış Kullanım
+```typescript
+// ❌ YANLIŞ: Setup fonksiyonu dışında değişken tanımlama
+// let myVar = 10;
+export const useMyStore = defineStore('myStore', () => {
+  // ...
+});
+
+// ❌ YANLIŞ: State için `reactive()` kullanmak (ref tercih edilir)
+// const state = reactive({ count: 0 });
+
+// ❌ YANLIŞ: Actions içinde `this` kullanmak
+/*
+function increment() {
+  this.count++; // YANLIŞ
+}
+*/
+
+// ❌ YANLIŞ: State veya Getter'ları component içinde storeToRefs olmadan destructure etmek
+/*
+<script setup>
+  const counterStore = useCounterStore();
+  const { count } = counterStore; // YANLIŞ - Reaktivite kaybolur
+</script>
+*/
+
+// ❌ YANLIŞ: Store içinde başka bir store'u setup anında doğrudan okumak (sonsuz döngü riski)
+/*
+export const useStoreA = defineStore('storeA', () => {
+  const storeB = useStoreB();
+  const initialBValue = storeB.someValue; // ❌ RİSKLİ - Eğer StoreB de StoreA'yı okuyorsa
+  // ...
+});
+*/
+// Doğrusu: Başka store değerlerini action veya computed içinde okuyun.
+
+```
+
+## 🔍 Kontrol Listesi
+
+### Kod Kalitesi
+- [ ] Store ID benzersiz ve string mi?
+- [ ] Setup fonksiyonu (`() => {}`) kullanılıyor mu?
+- [ ] State için `ref()` kullanılıyor mu?
+- [ ] Getterlar için `computed()` kullanılıyor mu?
+- [ ] Actionlar düz fonksiyon olarak mı tanımlanmış?
+- [ ] Actionlar içinde state `.value` ile mi değiştiriliyor?
+- [ ] Gerekli state, getter ve actionlar setup fonksiyonundan return ediliyor mu?
+- [ ] Store ismi `useMyStore` formatında mı?
+- [ ] Component içinde state/getterlar `storeToRefs` ile mi alınıyor?
+
+### Teknik Gereksinimler
+- [ ] TypeScript tipleri (varsa) doğru kullanılmış mı?
+- [ ] HMR desteği eklenmiş mi (önerilir)?
+- [ ] Storelar arası döngüsel bağımlılıklardan kaçınılmış mı?
+
+## 📝 Kural İçeriği Yönergeleri
+- `defineStore` ile setup store tanımını açıklayın.
+- `ref`, `computed` ve fonksiyonların state, getter, action olarak nasıl kullanıldığını gösterin.
+- `return` ifadesinin store'un public arayüzünü nasıl belirlediğini vurgulayın.
+- Component içinde `useMyStore()` ve `storeToRefs()` kullanımını örnekleyin.
+- HMR desteğinin nasıl ekleneceğini gösterin.
+
+## 🔄 Kural Bakımı
+- Yeni Pinia sürümleriyle gelen özellikleri (örn. yeni helperlar) ekleyin.
+- Setup store ile ilgili yaygın desenleri veya potansiyel sorunları (örn. store kompozisyonu) ekleyin.
+
+## 🧪 Testler
+- Vitest veya benzeri bir araçla:
+  - [ ] Store'un başlangıç state'ini test edin.
+  - [ ] Action'ların state'i beklendiği gibi değiştirdiğini test edin.
+  - [ ] Getter'ların doğru hesaplanmış değerleri döndürdüğünü test edin.
+  - [ ] Farklı action çağrımlarının sonuçlarını test edin.
+  - [ ] Varsa `$reset` metodunun state'i sıfırladığını test edin.
+
+## 💡 İpuçları
+- Store mantığını küçük ve odaklanmış tutun. Çok fazla sorumluluk yüklemeyin.
+- Karmaşık veya tekrar eden action mantığını store dışına, composable fonksiyonlara taşımayı düşünün.
+- Store içinde global state yerine gerçekten global olması gereken state'i tutun.
+- Gerekirse, state sıfırlama için özel bir `$reset` aksiyonu ekleyebilirsiniz.
+- Başka bir store'a bağımlılık varsa, onu action veya computed içinde çağırarak kullanın, setup anında doğrudan state okumaktan kaçının.
+- **Hata Normalleştirme:** Farklı kaynaklardan gelen hataları (`FetchError`, özel hatalar, genel `Error`) tutarlı bir `IApiError { code, message, details? }` yapısına dönüştürmek için paylaşılan bir `normalizeError` yardımcı fonksiyonu kullanın. Bu, hem store içindeki hem de UI katmanındaki hata yönetimini basitleştirir.
+  ```typescript
+  // Örnek: utils/errorHelper.ts
+  import { FetchError } from 'ofetch';
+  import { BaseError } from '@/errors/baseError'; // Varsayımsal özel hata sınıfı
+  import type { IApiError } from '@/types/shared.types'; // Varsayımsal arayüz
+
+  export function normalizeError(error: unknown): IApiError {
+      if (error instanceof BaseError) {
+          return { code: error.code, message: error.message, details: error.details };
+      }
+      if (error instanceof FetchError) {
+          if (error.data && typeof error.data === 'object' && 'code' in error.data && 'message' in error.data) {
+              return error.data as IApiError; // API'den gelen yapıya güven
+          }
+          return { code: 'FETCH_ERROR', message: error.message || 'API isteği başarısız oldu.', details: { statusCode: error.statusCode } };
+      }
+      if (error instanceof Error) {
+          return { code: 'INTERNAL_CLIENT_ERROR', message: error.message };
+      }
+      return { code: 'UNKNOWN_ERROR', message: 'Beklenmedik bir hata oluştu.' };
+  }
+  ```
+- `IApiError` ve özel `BaseError` gibi tipleri `@types-schema-models.mdc` veya benzeri paylaşılan bir dosyada tanımlayın.
+- API'den dönen hata yapısını dikkate alarak `normalizeError` fonksiyonunu geliştirin.
+

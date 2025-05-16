@@ -1,0 +1,181 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Uyaninca yapilacaklar.
+
+Once kaynaklar toplanacak bu kaynalardan bakarak kurallar tek tek olusturulacak.
+https://github.com/eyaltoledano/claude-task-master/blob/main/.cursor/rules/architecture.mdc
+
+
+
+
+---
+type: [enter your selection]
+description: [main purpose of the rule]
+globs: [which files the rule applies to, e.g., components/*.vue]
+---
+
+# [Topic] Rules
+
+## 🎯 Rule Type Configuration
+
+### Primary Rule Type Selection
+Choose one and remove others:
+- [ ] Always: Automatically applied to every request (e.g., code style, security checks)
+- [ ] Manual: Used only when manually called (e.g., special code generation templates)
+- [ ] Auto Attached: Automatically triggered for specific files/situations (e.g., rules for *.vue files)
+- [ ] Agent Requested: Called by AI when needed (e.g., complex checks, optimization suggestions)
+
+After selection, keep only the chosen type and remove others.
+
+## 📋 Responsibilities
+- [Main responsibility 1]
+- [Main responsibility 2]
+- [Main responsibility 3]
+
+## 🧩 Key Components
+- [Component 1]: [Description]
+- [Component 2]: [Description]
+- [Component 3]: [Description]
+
+## 📋 Required Directory Structure
+```
+[Show exact directory structure with [REQUIRED] markers]
+project/
+├── [dir1]/            # Description [REQUIRED]
+│   ├── file1.ts      # Purpose
+│   └── file2.ts      # Purpose [REQUIRED]
+└── [dir2]/           # Description
+    └── file3.ts      # Purpose
+```
+
+## 📋 Required Implementations
+
+### Core Types [If Applicable]
+```typescript
+// Location: project/types/[topic].ts
+export interface BaseType {
+  // Show required properties
+}
+
+export type SpecificType = {
+  // Show type definition
+}
+```
+
+### Validation [If Applicable]
+```typescript
+// Location: project/validations/[topic].ts
+export const validationSchema = {
+  // Show validation rules
+}
+```
+
+### Core Functions [If Applicable]
+```typescript
+// Location: project/[topic]/core.ts
+export function requiredFunction() {
+  // Show implementation
+}
+```
+
+## 📋 Dependencies
+
+### Required Packages
+- `package-name`: ^version (description) [REQUIRED]
+- `optional-package`: ^version (description)
+
+### Required Rules
+- Rule that must be applied before this one [REQUIRED]
+- Related rules that should be considered
+
+## ✅ Correct Usage
+```typescript
+// Show complete working example with all required parts
+```
+
+## ❌ Incorrect Usage
+```typescript
+// Show anti-patterns and common mistakes
+```
+
+## 🔍 Implementation Checklist
+
+### Required Files
+- [ ] List all required files with paths
+- [ ] List all required exports
+- [ ] List all required configurations
+
+### Required Types
+- [ ] List all required types/interfaces
+- [ ] List all required type exports
+- [ ] List all required type validations
+
+### Required Functions
+- [ ] List all required functions
+- [ ] List all required handlers
+- [ ] List all required utilities
+
+### Required Tests
+- [ ] List required test files
+- [ ] List required test cases
+- [ ] List required test coverage
+
+## 📝 Rule Content Guidelines
+- Start with required implementations
+- Show complete working examples
+- Document all requirements clearly
+- Reference other rules when needed
+- Keep rules focused and single-purpose
+
+## 🔄 Rule Maintenance
+- Update when dependencies change
+- Keep examples current with codebase
+- Remove outdated patterns
+- Update based on team feedback
+
+## 🧪 Tests
+### Unit Tests [REQUIRED]
+- [ ] Test each required function
+- [ ] Test each required type
+- [ ] Test error cases
+
+### Integration Tests [If Applicable]
+- [ ] Test with required dependencies
+- [ ] Test with optional features
+- [ ] Test error scenarios
+
+### E2E Tests [If Applicable]
+- [ ] Test complete workflows
+- [ ] Test error handling
+- [ ] Test performance requirements
+
+## 💡 Tips
+- List common pitfalls
+- List performance considerations
+- List security considerations
+- List maintenance considerations
+
+## 💻 Code Examples
+```typescript
+// ✅ DO: Good example
+const goodExample = true;
+
+// ❌ DON'T: Bad example
+const badExample = false;
+```
+
+## 📝 Rule Content Guidelines
+- Start with high-level overview
+- Include specific, actionable requirements
+- Show examples of correct implementation
+- Reference existing code when possible
+- Keep rules DRY by referencing other rules
+
+## 🔄 Rule Maintenance
+- Update rules when new patterns emerge
+- Add examples from actual codebase
+- Remove outdated patterns
+- Cross-reference related rules
